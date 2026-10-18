@@ -149,7 +149,7 @@ We found no other public scraper for leroymerlin.es. Product pages embed structu
 - **Sitemaps.** `sitemap-index.xml`, `sitemap-store1.xml` and `sitemap-productos1..4.xml` returned 200 to plain HTTP in phase 0.
   - They give product and store URLs, with no price or stock: enough for a catalogue index and a store list, not for the main requirement.
   - Lowest legal risk, since the site publishes them for crawlers.
-  - The robots.txt content was not read, so it is **unverified**. Check it before using any path.
+  - robots.txt allows the sitemaps; see the legal section for what it disallows.
 - **Web archives / search engine caches.** Not researched in depth. Crawl coverage of a DataDome site is probably patchy and stale, so prices and stock would be out of date. **Unverified**; low value.
 - **schema.org via search engines.** Product pages embed structured data, but a search engine's indexed copy has no per-store stock. Low value.
 - **Store locator.** The store list is in `sitemap-store1.xml` (phase 0), so store addresses and phone numbers come from there. Coordinates and ids need the site (unverified).
@@ -176,7 +176,14 @@ Not legal advice. Below is what we could verify.
   - Effect: if the leroymerlin.es terms forbid automated extraction and the user accepted them, Leroy Merlin has a breach-of-contract claim even without a database right. Whether mere browsing binds a visitor to site terms in Spain is not settled in the sources we read.
 - **Leroy Merlin terms.**
   - The aviso legal is at `leroymerlin.es/aviso-legal.html`, owner LEROY MERLIN ESPAÑA, S.L.U. We did not fetch it (constraint), so any clause on scraping or automated access is **unverified**.
-  - Read it, plus the marketplace regulations page and the robots.txt `Disallow` set, before shipping.
+  - Read it, plus the marketplace regulations page, before shipping.
+- **robots.txt (read 2026-10-19, after this research; "V53", dated 05-08-2026).** It disallows, for all user agents:
+  - `/search?q=*` and `/buscador`, which is the search page;
+  - `*/productpageservicesfunctionality/*`, which is the per-store stock XHR seen in phase 0;
+  - `/*?*storeid`, `/*filters=*`, `/*sort=*`, `/*limit=*` and `/*/*?facet=*`;
+  - `/header-cart*`, `/cart`, `/checkout*`, `/login*` and `/mylm/*`.
+
+  Product pages, plain category paths and the sitemaps are allowed. robots.txt is aimed at crawlers rather than at a user-driven client, but it is a clear signal of what the site does not want automated. The two features this project cares most about (search and per-store stock) sit on disallowed paths.
 - **Technical measures.** DataDome is an access control. Getting around it may breach the ToS, and could support an unfair-competition or computer-misuse argument. Spanish law specifics were not researched: **unverified**.
 - **GDPR / data protection authorities.**
   - Catalogue, price and stock data is not personal data. The CNIL scraping guidance ([CNIL](https://www.cnil.fr/fr/focus-interet-legitime-collecte-par-moissonnage)) and the AEPD criterion ([AEPD](https://www.aepd.es/informes-y-resoluciones/criterios-juridicos-aepd/herramientas-data-scraping-para-evaluacion-de-tendencias)) only apply if we collect personal data.
@@ -216,7 +223,7 @@ Not legal advice. Below is what we could verify.
 ## key uncertainties
 - Whether the `datadome` cookie alone (with stock TLS) works when taken from a browser session, and how long a trusted cookie lasts on leroymerlin.es. Untested. DataDome's docs only give a 1-year cookie lifetime, not how long the cookie stays trusted.
 - Whether DataDome binds the cookie to IP or fingerprint. Only third parties claim it does.
-- The aviso legal text, the robots.txt content and any bug-bounty policy. Not read.
+- The aviso legal text and any bug-bounty policy. Not read. (robots.txt has since been read; see the legal section.)
 - Whether any Mirakl or Awin feed carries stock. Unverified.
 - The Android package id, backend hosts and SDK presence. Unverified.
 - The Ryanair v PR Aviation holding. Taken from secondary summaries only; the judgment text was not retrieved.
