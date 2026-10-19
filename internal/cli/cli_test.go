@@ -285,3 +285,20 @@ func TestMCPToolsListAndCall(t *testing.T) {
 		t.Fatalf("doctor tool: %s", lines[4])
 	}
 }
+
+func TestMain(m *testing.M) {
+	minInterval = 0 // fake servers need no pacing
+	os.Exit(m.Run())
+}
+
+// Separate invocations share the rate gate through a stamp in the state dir.
+func TestRequestStampPersists(t *testing.T) {
+	e := newEnv(t)
+	if _, errOut, code := e.run("store", "list"); code != 0 {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	raw, err := os.ReadFile(filepath.Join(e.home, "state", "leroymerlin-cli", "last-request"))
+	if err != nil || len(raw) == 0 {
+		t.Fatalf("no request stamp: %v", err)
+	}
+}

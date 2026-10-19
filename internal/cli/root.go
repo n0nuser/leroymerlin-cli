@@ -10,8 +10,10 @@ import (
 	"io"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -45,8 +47,16 @@ type App struct {
 	flagNoInput     bool
 	flagDebug       bool
 
-	ready bool
+	ready   bool
+	started time.Time
 }
+
+// minInterval is the request spacing; tests set it to zero.
+var minInterval = leroymerlin.DefaultMinInterval
+
+// lastRequestFile carries the rate gate across invocations, so a shell loop
+// is spaced like one long session.
+const lastRequestFile = "last-request"
 
 // Execute runs the CLI and returns the process exit code.
 func Execute(version string, args []string, stdin io.Reader, stdout, stderr io.Writer) int {
@@ -67,6 +77,7 @@ func run(ctx context.Context, version string, args []string, stdin io.Reader, st
 	// Persist cookie rotations whether or not the command succeeded: a
 	// challenged request still rotates the cookie the next run must send.
 	a.persistSession()
+	a.persistGate()
 	if err == nil {
 		if cmd != nil {
 			a.maybeUpdate(ctx, cmd)
@@ -170,9 +181,16 @@ func (a *App) setup(cmd *cobra.Command) error {
 		return output.Usagef("%v", err)
 	}
 	a.Client = leroymerlin.New()
+	a.Client.MinInterval = minInterval
 	if a.flagDebug {
 		a.Client.Debug = a.Stderr
 	}
+	if raw, err := os.ReadFile(filepath.Join(a.Paths.StateDir, lastRequestFile)); err == nil {
+		if t, err := time.Parse(time.RFC3339Nano, strings.TrimSpace(string(raw))); err == nil {
+			leroymerlin.SeedLastRequest(t)
+		}
+	}
+	a.started = time.Now()
 	if a.Session, err = config.LoadSession(a.Paths, a.Profile); err != nil {
 		return err
 	}
@@ -199,6 +217,16 @@ func (a *App) persistSession() {
 	}
 	if err := config.SaveSession(a.Paths, a.Profile, a.Session); err != nil {
 		fmt.Fprintln(a.Stderr, "leroymerlin: warning: could not save the rotated session:", err)
+	}
+}
+
+// persistGate records when this invocation last sent a request.
+func (a *App) persistGate() {
+	if !a.ready {
+		return
+	}
+	if last := leroymerlin.LastRequest(); last.After(a.started) {
+		_ = config.WriteAtomic(filepath.Join(a.Paths.StateDir, lastRequestFile), []byte(last.UTC().Format(time.RFC3339Nano)), 0o600)
 	}
 }
 

@@ -44,9 +44,31 @@ type Client struct {
 	Session     *Session
 	MinInterval time.Duration
 	Debug       io.Writer // request log, cookies redacted; nil for none
+}
 
-	mu   sync.Mutex
+// gate spaces requests across every Client in the process (the MCP server
+// runs one per tool call). The CLI seeds it from disk so separate
+// invocations are spaced too.
+var gate struct {
+	sync.Mutex
 	last time.Time
+}
+
+// SeedLastRequest tells the gate when a previous process last sent a
+// request. Earlier times than the one already known are ignored.
+func SeedLastRequest(t time.Time) {
+	gate.Lock()
+	defer gate.Unlock()
+	if t.After(gate.last) && !t.After(time.Now()) {
+		gate.last = t
+	}
+}
+
+// LastRequest is when the last request left this process, zero if none.
+func LastRequest() time.Time {
+	gate.Lock()
+	defer gate.Unlock()
+	return gate.last
 }
 
 // New builds a client with the Chrome transport.
@@ -120,11 +142,17 @@ func (c *Client) get(ctx context.Context, path string, headers map[string]string
 	for k, v := range headers {
 		req.Header.Set(k, v)
 	}
-	if h := c.Session.header(u); h != "" {
-		req.Header.Set("Cookie", h)
+	for k, v := range c.clientHints(ua) {
+		req.Header.Set(k, v)
+	}
+	// The session is the cookie jar, so redirects within the site send and
+	// keep rotated cookies hop by hop.
+	hc := *c.HTTP
+	if c.Session != nil {
+		hc.Jar = c.Session.Jar()
 	}
 	start := time.Now()
-	resp, err := c.HTTP.Do(req)
+	resp, err := hc.Do(req)
 	if err != nil {
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
@@ -135,7 +163,6 @@ func (c *Client) get(ctx context.Context, path string, headers map[string]string
 		return nil, &Error{Kind: KindNetwork, Msg: fmt.Sprintf("cannot reach %s: %v", u.Host, err), Endpoint: u.Path, Retryable: retry}
 	}
 	defer resp.Body.Close()
-	c.Session.absorb(resp)
 	body, err := io.ReadAll(io.LimitReader(resp.Body, maxBody))
 	if err != nil {
 		return nil, &Error{Kind: KindNetwork, Msg: fmt.Sprintf("reading %s: %v", u.Path, err), Endpoint: u.Path, Retryable: true}
@@ -148,13 +175,16 @@ func (c *Client) get(ctx context.Context, path string, headers map[string]string
 	return p, nil
 }
 
-// wait enforces MinInterval (plus up to 30% jitter) between requests.
+// wait enforces MinInterval (plus up to 30% jitter) since the last request
+// of any client.
+// ponytail: two processes started at the same instant can still race the
+// on-disk stamp; a lock file would close it if that ever matters.
 func (c *Client) wait(ctx context.Context) error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	if c.MinInterval > 0 && !c.last.IsZero() {
+	gate.Lock()
+	defer gate.Unlock()
+	if c.MinInterval > 0 && !gate.last.IsZero() {
 		d := c.MinInterval + time.Duration(rand.Int64N(int64(c.MinInterval)*3/10+1))
-		if sleep := time.Until(c.last.Add(d)); sleep > 0 {
+		if sleep := time.Until(gate.last.Add(d)); sleep > 0 {
 			t := time.NewTimer(sleep)
 			select {
 			case <-ctx.Done():
@@ -164,18 +194,40 @@ func (c *Client) wait(ctx context.Context) error {
 			}
 		}
 	}
-	c.last = time.Now()
+	gate.last = time.Now()
+	return nil
+}
+
+// clientHints are the Sec-CH-UA headers Chrome sends with every request. A
+// session imported from a HAR carries the browser's own; the default user
+// agent gets matching defaults; a custom user agent without hints gets none
+// rather than a mismatched set.
+func (c *Client) clientHints(ua string) map[string]string {
+	if c.Session != nil && len(c.Session.ClientHints) > 0 {
+		return c.Session.ClientHints
+	}
+	if ua == DefaultUserAgent {
+		return map[string]string{
+			"Sec-Ch-Ua":          `"Not(A:Brand";v="99", "Google Chrome";v="133", "Chromium";v="133"`,
+			"Sec-Ch-Ua-Mobile":   "?0",
+			"Sec-Ch-Ua-Platform": `"Linux"`,
+		}
+	}
 	return nil
 }
 
 // IsBlockPage reports whether a response is the bot-protection challenge
 // rather than the page asked for. The status alone is not enough: a real 403
 // from the origin is a different problem from a challenge.
+//
+// Only a 403 or 429 can be a challenge: protected 200 pages may carry the
+// vendor's headers and reference its hosts too.
 func IsBlockPage(status int, h http.Header, body []byte) bool {
-	if strings.EqualFold(h.Get("Server"), "DataDome") || h.Get("X-Datadome") != "" || h.Get("X-Datadome-Cid") != "" {
-		return status == http.StatusForbidden || status == http.StatusTooManyRequests || bytes.Contains(body, []byte("captcha-delivery.com"))
+	if status != http.StatusForbidden && status != http.StatusTooManyRequests {
+		return false
 	}
-	return (status == http.StatusForbidden || status == http.StatusTooManyRequests) && bytes.Contains(body, []byte("captcha-delivery.com"))
+	vendor := strings.EqualFold(h.Get("Server"), "DataDome") || h.Get("X-Datadome") != "" || h.Get("X-Datadome-Cid") != ""
+	return vendor || bytes.Contains(body, []byte("captcha-delivery.com"))
 }
 
 // classify maps a response status to an error, or nil for a usable page.

@@ -68,7 +68,7 @@ leroymerlin doctor
 
 ### session
 
-leroymerlin.es is behind bot protection, which answers scripts with a challenge page. the cli does not try to beat it. it replays the session of your own browser: your cookies and your browser's user agent, over a chrome-like tls handshake. no account and no password are involved.
+leroymerlin.es is behind bot protection, which answers scripts with a challenge page. the cli never solves challenges. it replays the session your own browser already earned, with your cookies, your browser's user agent and a chrome-like tls handshake, so the site sees the same browser it already trusts. no account and no password are involved.
 
 1. open leroymerlin.es in chrome and pick your store ("Elegir mi tienda")
 2. export the session:
@@ -142,7 +142,7 @@ leroymerlin mcp install claude-code
 
 ## manners
 
-requests go one at a time, at least 1.5 seconds apart. there is no bulk mode and there will not be one. the site's robots.txt asks crawlers to stay away from search and stock pages. this is a tool for one person shopping, so keep scripts and agent loops small.
+requests go one at a time, at least 1.5 seconds apart, and that spacing carries over between runs. there is no bulk mode and there will not be one. the site's robots.txt asks crawlers to stay away from search and stock pages. this is a tool for one person shopping, so keep scripts and agent loops small.
 
 ## documentation
 

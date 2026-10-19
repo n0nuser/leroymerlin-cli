@@ -34,6 +34,8 @@ type Cookie struct {
 type Session struct {
 	Cookies   []Cookie `json:"cookies"`
 	UserAgent string   `json:"user_agent,omitempty"`
+	// ClientHints are the browser's Sec-CH-UA* request headers, from a HAR.
+	ClientHints map[string]string `json:"client_hints,omitempty"`
 
 	dirty bool
 }
@@ -55,16 +57,31 @@ func (s *Session) Cookie(name string) (Cookie, bool) {
 	return Cookie{}, false
 }
 
-// header builds the Cookie header for u: host and path must match, expired
-// cookies are skipped.
+// header builds the Cookie header value for u.
 func (s *Session) header(u *url.URL) string {
-	if s == nil {
-		return ""
+	var parts []string
+	for _, c := range s.Jar().Cookies(u) {
+		parts = append(parts, c.Name+"="+c.Value)
+	}
+	return strings.Join(parts, "; ")
+}
+
+// Jar exposes the session as an http.CookieJar, so redirects within the site
+// send and keep rotated cookies hop by hop.
+func (s *Session) Jar() http.CookieJar { return sessionJar{s} }
+
+type sessionJar struct{ s *Session }
+
+// Cookies returns the session cookies that apply to u: host and path match,
+// not expired, secure ones only over https.
+func (j sessionJar) Cookies(u *url.URL) []*http.Cookie {
+	if j.s == nil {
+		return nil
 	}
 	now := time.Now()
 	host := u.Hostname()
-	var parts []string
-	for _, c := range s.Cookies {
+	var out []*http.Cookie
+	for _, c := range j.s.Cookies {
 		if !c.Expires.IsZero() && !c.Expires.After(now) {
 			continue
 		}
@@ -78,23 +95,25 @@ func (s *Session) header(u *url.URL) string {
 		if c.Secure && u.Scheme != "https" {
 			continue
 		}
-		parts = append(parts, c.Name+"="+c.Value)
+		out = append(out, &http.Cookie{Name: c.Name, Value: c.Value})
 	}
-	return strings.Join(parts, "; ")
+	return out
 }
 
-// absorb applies a response's Set-Cookie headers. DataDome rotates its cookie
-// on most responses, and replaying the old one goes stale quickly.
-func (s *Session) absorb(resp *http.Response) {
-	if s == nil {
+// SetCookies applies a response's Set-Cookie headers. DataDome rotates its
+// cookie on most responses, and replaying the old one goes stale quickly.
+func (j sessionJar) SetCookies(u *url.URL, cookies []*http.Cookie) {
+	if j.s == nil {
 		return
 	}
-	for _, hc := range resp.Cookies() {
+	for _, hc := range cookies {
 		c := Cookie{Name: hc.Name, Value: hc.Value, Domain: hc.Domain, Path: hc.Path, Secure: hc.Secure, HTTPOnly: hc.HttpOnly, Expires: hc.Expires}
 		if c.Domain == "" {
-			c.Domain = resp.Request.URL.Hostname() // host-only cookie
+			c.Domain = u.Hostname() // host-only cookie
 		} else {
-			c.Domain = "." + strings.TrimPrefix(c.Domain, ".") // net/http strips the dot
+			// net/http strips the leading dot. Regression: rotated domain
+			// cookies were stored without it and never matched again.
+			c.Domain = "." + strings.TrimPrefix(c.Domain, ".")
 		}
 		if !ownDomain(c.Domain) {
 			continue
@@ -103,7 +122,7 @@ func (s *Session) absorb(resp *http.Response) {
 			c.Expires = time.Now().Add(time.Duration(hc.MaxAge) * time.Second)
 		}
 		remove := hc.MaxAge < 0 || (!c.Expires.IsZero() && c.Expires.Before(time.Now()))
-		s.set(c, remove)
+		j.s.set(c, remove)
 	}
 }
 
@@ -344,6 +363,11 @@ func parseHAR(raw []byte) (ImportResult, error) {
 			switch strings.ToLower(hd.Name) {
 			case "user-agent":
 				res.Session.UserAgent = hd.Value
+			case "sec-ch-ua", "sec-ch-ua-mobile", "sec-ch-ua-platform":
+				if res.Session.ClientHints == nil {
+					res.Session.ClientHints = map[string]string{}
+				}
+				res.Session.ClientHints[http.CanonicalHeaderKey(hd.Name)] = hd.Value
 			case "cookie":
 				// Chrome fills request.cookies too, but the header is the
 				// source of truth and the only one some exporters keep.

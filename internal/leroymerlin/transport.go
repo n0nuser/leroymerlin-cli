@@ -26,7 +26,9 @@ var chromeHello = utls.HelloChrome_Auto
 func ChromeTransport(roots *x509.CertPool) *http.Transport {
 	dialer := &net.Dialer{Timeout: 15 * time.Second, KeepAlive: 30 * time.Second}
 	return &http.Transport{
-		Proxy: http.ProxyFromEnvironment,
+		// No proxy: net/http only uses DialTLSContext for direct HTTPS, so a
+		// proxy from HTTPS_PROXY would silently swap in Go's own hello.
+		Proxy: nil,
 		DialTLSContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
 			raw, err := dialer.DialContext(ctx, network, addr)
 			if err != nil {

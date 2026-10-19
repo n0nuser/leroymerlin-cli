@@ -21,34 +21,47 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      site: ${{ steps.site.outputs.present }}
     steps:
       - uses: actions/checkout@v4
+      - id: site
+        run: echo "present=${{ hashFiles('docs-site/package.json') != '' }}" >> "$GITHUB_OUTPUT"
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
+      # The site app (docs-site/package.json) may not exist yet on this
+      # branch; without it there is nothing to publish.
       - uses: actions/setup-node@v4
+        if: hashFiles('docs-site/package.json') != ''
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: docs-site/package-lock.json
       - uses: actions/configure-pages@v5
+        if: hashFiles('docs-site/package.json') != ''
       - run: make docs
       - run: npm ci
+        if: hashFiles('docs-site/package.json') != ''
         working-directory: docs-site
       - run: npm run build
+        if: hashFiles('docs-site/package.json') != ''
         working-directory: docs-site
       - name: published files exist
+        if: hashFiles('docs-site/package.json') != ''
         working-directory: docs-site
         run: |
           test -s out/docs/index.html
           test -s out/llms.txt
           test -s out/api/search
       - uses: actions/upload-pages-artifact@v3
+        if: hashFiles('docs-site/package.json') != ''
         with:
           path: docs-site/out
 
   deploy:
     needs: build
+    if: needs.build.outputs.site == 'true'
     runs-on: ubuntu-latest
     permissions:
       pages: write

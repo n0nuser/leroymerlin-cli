@@ -143,10 +143,11 @@ Checks the latest stable GitHub release, verifies the archive's SHA-256 against 
 
 - **Base URL:** `https://www.leroymerlin.es`. `LEROYMERLIN_BASE_URL` overrides it, for tests.
 - **TLS:** a Chrome hello via utls with ALPN `http/1.1` (ADR 0002).
-- **Headers:** browser navigation headers; `Accept-Language: es-ES`; the session's user agent, or a Chrome 133 default.
-- **Rate:** one request at a time, at least 1.5 s apart plus up to 30% jitter.
+- **Headers:** browser navigation headers; `Accept-Language: es-ES`; the session's user agent, or a Chrome 133 default. The `Sec-CH-UA`, `-Mobile` and `-Platform` client hints come from the HAR, or match the default user agent. With a custom `--user-agent` and no HAR, no hints are sent.
+- **No proxy.** The storefront transport ignores `HTTPS_PROXY`/`HTTP_PROXY`, because a proxied connection would use Go's TLS hello instead of Chrome's.
+- **Rate:** one request at a time, at least 1.5 s apart plus up to 30% jitter. This holds across invocations too: the time of the last request is kept in `$XDG_STATE_HOME/leroymerlin-cli/last-request`. Two processes started at the same instant can still race.
 - **Redirects** are followed within leroymerlin.es only, five at most. The session is never sent to another host.
-- **Cookie rotation.** `Set-Cookie` responses for leroymerlin.es update the in-memory session. A file session is saved after the command, whether it succeeded or not. An env session never is.
+- **Cookie rotation.** The session is the HTTP client's cookie jar, so `Set-Cookie` on every hop, redirects included, updates the in-memory session. A file session is saved after the command, whether it succeeded or not. An env session never is.
 
 ## 10. Config, state, env
 
@@ -156,6 +157,7 @@ Checks the latest stable GitHub release, verifies the archive's SHA-256 against 
 | sessions | `$XDG_CONFIG_HOME/leroymerlin-cli/sessions/<profile>.json` | 0600, dir 0700, atomic |
 | state (watch) | `$XDG_DATA_HOME/leroymerlin-cli/state.db` | planned |
 | update stamp | `$XDG_STATE_HOME/leroymerlin-cli/update-check` | 0600 |
+| rate-gate stamp | `$XDG_STATE_HOME/leroymerlin-cli/last-request` | 0600 |
 
 `config.toml` keys: `default_profile`. Unknown keys are errors.
 
