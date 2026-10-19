@@ -6,13 +6,14 @@
   <a href="https://github.com/n0nuser/leroymerlin-cli/releases"><img src="https://img.shields.io/github/v/release/n0nuser/leroymerlin-cli?display_name=tag&style=flat-square&label=release&color=1c1917" alt="release badge"></a>
   <a href="https://github.com/n0nuser/leroymerlin-cli/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/n0nuser/leroymerlin-cli/ci.yml?branch=main&style=flat-square&label=ci&color=1c1917" alt="ci badge"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-mit-1c1917?style=flat-square" alt="license badge"></a>
+  <a href="https://pkg.go.dev/github.com/n0nuser/leroymerlin-cli"><img src="https://pkg.go.dev/badge/github.com/n0nuser/leroymerlin-cli.svg" alt="pkg.go.dev"></a>
 </p>
 
 ---
 
 `leroymerlin` is an unofficial terminal cli for leroymerlin.es. It lists stores and categories and checks stock at the store you buy from, so you know whether the bag of cement is on the shelf before you drive there. It compiles to one static Go binary. Output is json by default so everything pipes into `jq`; `--format pretty` is for humans. It is read-only: no cart, no checkout, nothing on your account.
 
-[documentation](https://DOCS_DOMAIN_TBD/docs) | [github](https://github.com/n0nuser/leroymerlin-cli)
+[documentation](https://n0nuser.github.io/leroymerlin-cli/docs/) | [github](https://github.com/n0nuser/leroymerlin-cli)
 
 ## for AI agents
 
@@ -28,6 +29,12 @@ or read the embedded agent notes:
 leroymerlin skills get leroymerlin-usage
 ```
 
+confirm the wiring with one read (needs a session):
+
+```bash
+leroymerlin search "cemento cola" --limit 3 --format pretty
+```
+
 ## why
 
 buying materials means asking one question many times: does my store have this, and how many. the website answers it one click at a time. this cli answers it from a script, an agent, or a shell loop, with the same json every time.
@@ -41,7 +48,20 @@ buying materials means asking one question many times: does my store have this, 
 | `search`, `product show`, `product stock`, `watch`, `sink` | work now, with your browser session |
 | per-store pickup stock | works when the session has a store selected; otherwise stock shows online availability and home delivery |
 
-## quickstart
+## install
+
+### one-liner
+
+linux and macos:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/n0nuser/leroymerlin-cli/main/scripts/install.sh | sh
+```
+
+installs the latest release into `~/.local/bin`, verifying it against the release's
+`checksums.txt` first. set `LEROYMERLIN_INSTALL_DIR` (or `PREFIX`) for another
+directory, or `VERSION=<x.y.z>` to pin a release. on windows, use the archive or
+`go install` below.
 
 ### go install
 
@@ -50,11 +70,24 @@ go install github.com/n0nuser/leroymerlin-cli/cmd/leroymerlin@latest
 leroymerlin --version
 ```
 
-### release binaries
+### npx
 
-download the archive for your platform from [releases](https://github.com/n0nuser/leroymerlin-cli/releases) and check it:
+once the npm wrapper is published (gated on an `NPM_TOKEN` secret, not set up yet):
 
 ```bash
+npx leroymerlin-cli search "cemento cola" --limit 3
+```
+
+the wrapper downloads the matching release binary on install and execs it; the
+package lives in [npm/](npm).
+
+### release binaries
+
+download the archive and its checksums first, then verify before extracting:
+
+```bash
+gh release download --repo n0nuser/leroymerlin-cli --pattern 'leroymerlin_*_linux_amd64.tar.gz'
+gh release download --repo n0nuser/leroymerlin-cli --pattern checksums.txt
 sha256sum -c --ignore-missing checksums.txt
 tar xzf leroymerlin_*_linux_amd64.tar.gz leroymerlin && install -m 755 leroymerlin ~/.local/bin/
 ```
@@ -62,7 +95,6 @@ tar xzf leroymerlin_*_linux_amd64.tar.gz leroymerlin && install -m 755 leroymerl
 every release ships `checksums.txt` with a github provenance attestation:
 
 ```sh
-gh release download --repo n0nuser/leroymerlin-cli --pattern checksums.txt
 gh attestation verify checksums.txt --repo n0nuser/leroymerlin-cli
 ```
 
@@ -74,7 +106,7 @@ make build     # bin/leroymerlin
 make check     # vet, staticcheck, tests, gofmt
 ```
 
-check that it works:
+check the install:
 
 ```bash
 leroymerlin auth harvest
@@ -82,13 +114,22 @@ leroymerlin store list --query madrid --format pretty
 leroymerlin doctor
 ```
 
-`go test ./...` is fully offline. one live smoke test is opt-in and needs an imported session; it makes a single real search request:
+`go test ./...` is fully offline. one live smoke test is opt-in and needs an
+imported session; it makes a single real search request:
 
 ```bash
 LEROYMERLIN_LIVE_TEST=1 go test ./internal/cli -run TestLiveSearch -count=1
 ```
 
-### session
+ready-to-run recipes are in [examples/](examples).
+
+### other package managers
+
+homebrew, scoop and aur are planned. each needs something this account does not
+have yet: a tap repository, a scoop bucket, and an aur ssh key. they are left out
+of `.goreleaser.yaml` on purpose.
+
+## session
 
 leroymerlin.es is behind bot protection, which answers scripts with a challenge page. the cli never solves challenges. it replays the session your own browser already earned, with your cookies, your browser's user agent and a chrome-like tls handshake, so the site sees the same browser it already trusts. no account and no password are involved.
 
@@ -194,6 +235,9 @@ requests go one at a time, at least 1.5 seconds apart, and that spacing carries 
 - [docs/cli-spec.md](docs/cli-spec.md): the interface contract
 - [docs/leroymerlin-api-discovery.md](docs/leroymerlin-api-discovery.md): what the site does, endpoint by endpoint
 - [docs/troubleshooting.md](docs/troubleshooting.md): common failures and the fix
+- [examples/](examples): ready-to-run recipes and a sample config.toml
+- [scripts/install.sh](scripts/install.sh): the curl|sh installer
+- [npm/](npm): the npx wrapper (not published yet)
 - [docs/adr](docs/adr): decisions (session replay, tls fingerprint, read-only)
 - [AGENTS.md](AGENTS.md): vocabulary and rules for contributors and agents
 

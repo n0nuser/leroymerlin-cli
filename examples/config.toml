@@ -1,0 +1,33 @@
+# Example leroymerlin-cli config.toml. The real file lives at
+# $XDG_CONFIG_HOME/leroymerlin-cli/config.toml; `leroymerlin config path` prints it.
+#
+# Copy what you need; unknown keys are refused, so delete what you do not use.
+
+# The profile `search`, `product`, `watch` and `doctor` act as when --profile is
+# not given. One profile is one imported browser session, and therefore one store.
+default_profile = "default"
+
+[watch]
+# Default interval for `watch run` and for new watches. Floor: 30s.
+interval = "5m"
+
+# A watch can name one or more sinks with --notify; each gets a copy of every
+# event. Without any, events go to stdout only.
+
+# A phone notification through https://ntfy.sh (or your own ntfy server).
+[sinks.topic]
+type = "ntfy"
+url = "https://ntfy.sh"
+topic = "leroymerlin"
+# Optional: a file holding the access token, read at delivery time.
+# token_file = "~/.config/leroymerlin-cli/ntfy-token"
+
+# A JSON POST of the event to a webhook of your own.
+[sinks.hook]
+type = "webhook"
+url = "https://example.invalid/hooks/leroymerlin"
+
+# One event per run of a local command, as JSON on stdin.
+[sinks.script]
+type = "exec"
+command = ["~/bin/on-leroymerlin-event"]

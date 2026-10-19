@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://leroymerlin-cli.example'),
+  metadataBase: new URL('https://n0nuser.github.io/leroymerlin-cli'),
   title: { default: 'leroymerlin-cli', template: '%s | leroymerlin-cli' },
   description:
     'An unofficial, read-only terminal client for leroymerlin.es: stores, categories, products and stock as JSON.',

@@ -3,15 +3,16 @@
 Static documentation for `leroymerlin-cli`, built with Next.js and Fumadocs and
 exported to `out/`.
 
-The public domain is a placeholder for now: `https://leroymerlin-cli.example`.
-Set the real address in `app/layout.tsx` when the site is deployed.
+It is published to GitHub Pages at `https://n0nuser.github.io/leroymerlin-cli/`.
+The project-site prefix is `basePath` in `next.config.mjs`; keep it in step with
+the repository name.
 
 ```bash
 npm install
-npm run dev       # http://localhost:3000/docs
+npm run dev       # http://localhost:3000/leroymerlin-cli/docs
 npm run typecheck
 npm run build     # static export in out/
-npm start         # preview out/ on http://localhost:3000/docs
+npm start         # preview out/ on http://localhost:3000/leroymerlin-cli/docs
 ```
 
 `npm install` runs `fumadocs-mdx` to generate the content types before the first

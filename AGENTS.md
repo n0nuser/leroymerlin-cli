@@ -12,6 +12,7 @@ An unofficial, read-only terminal client for leroymerlin.es. It covers stores, c
 - Live captures (HAR, cookie exports) are secrets. Keep them outside the repo; `.gitignore` blocks `*.har` and `*cookies*.json`. Strip cookies, `Set-Cookie` headers and context ids before anything becomes a fixture.
 - Do not add a way past the bot protection beyond the session replay of ADR 0001 and ADR 0002: no solvers, no stealth browsers, no proxies.
 - Keep the request pace (one at a time, at least 1.5 s apart). No bulk or mirror features.
+- Distribution is `go install`, the `curl|sh` script in `scripts/`, the release archives, and the `npm/` wrapper for `npx`. Publishing the npm package is gated on an `NPM_TOKEN` secret and is not wired into CI yet. Homebrew, Scoop and AUR are planned but need a tap repository, a scoop bucket and an AUR key; do not add them to `.goreleaser.yaml` before those exist.
 - Don't mention, credit or copy other projects in code, docs or commits.
 
 ## Language
