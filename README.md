@@ -14,6 +14,20 @@
 
 [documentation](https://DOCS_DOMAIN_TBD/docs) | [github](https://github.com/n0nuser/leroymerlin-cli)
 
+## for AI agents
+
+register the read commands as an MCP server in your harness:
+
+```bash
+leroymerlin mcp install claude-code   # also: codex, cursor
+```
+
+or read the embedded agent notes:
+
+```bash
+leroymerlin skills get leroymerlin-usage
+```
+
 ## why
 
 buying materials means asking one question many times: does my store have this, and how many. the website answers it one click at a time. this cli answers it from a script, an agent, or a shell loop, with the same json every time.
@@ -66,6 +80,12 @@ check that it works:
 leroymerlin auth harvest
 leroymerlin store list --query madrid --format pretty
 leroymerlin doctor
+```
+
+`go test ./...` is fully offline. one live smoke test is opt-in and needs an imported session; it makes a single real search request:
+
+```bash
+LEROYMERLIN_LIVE_TEST=1 go test ./internal/cli -run TestLiveSearch -count=1
 ```
 
 ### session
