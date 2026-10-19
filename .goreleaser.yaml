@@ -1,0 +1,50 @@
+version: 2
+
+project_name: leroymerlin
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: leroymerlin
+    # Built from cmd/leroymerlin so `go install .../cmd/leroymerlin` and the
+    # release name the binary the same.
+    main: ./cmd/leroymerlin
+    binary: leroymerlin
+    env:
+      - CGO_ENABLED=0
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+    ldflags:
+      - -s -w -X main.version={{.Version}}
+
+archives:
+  - id: default
+    formats: [tar.gz]
+    # `leroymerlin update` builds this same name; change both together.
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files:
+      - LICENSE
+      - README.md
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  use: github
+  filters:
+    exclude:
+      - "^chore"
+      - "^ci"
+      - "^docs"
+
+release:
+  github:
+    owner: n0nuser
+    name: leroymerlin-cli
+  draft: false
+  prerelease: auto

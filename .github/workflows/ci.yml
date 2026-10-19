@@ -1,0 +1,57 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  go:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: gofmt
+        run: test -z "$(gofmt -l .)"
+      - name: vet
+        run: go vet ./...
+      - name: staticcheck
+        run: go run honnef.co/go/tools/cmd/staticcheck@latest ./...
+      # Tests use captured fixtures and local fake servers only; nothing here
+      # talks to leroymerlin.es.
+      - name: test
+        run: go test ./... -count=1
+      - name: build
+        run: go build ./...
+      - name: command reference is current
+        run: make docs-check
+      - name: goreleaser config
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          version: "~> v2"
+          args: check
+
+  docs-site:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: make docs
+      # The site app lives in docs-site/ (package.json); the reference pages
+      # in it are generated here. Skip the node build until the app exists.
+      - uses: actions/setup-node@v4
+        if: hashFiles('docs-site/package.json') != ''
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: docs-site/package-lock.json
+      - run: npm ci && npm run typecheck && npm run build
+        if: hashFiles('docs-site/package.json') != ''
+        working-directory: docs-site

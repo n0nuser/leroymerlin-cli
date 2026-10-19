@@ -1,0 +1,41 @@
+name: leroymerlin.es changed
+description: The cli exited with code 7 and printed a link to this form
+title: "[api change] "
+labels: [api-change]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The cli filled in most of this from the request that failed. It never includes your cookies or search terms. Add them only if you want to.
+  - type: input
+    id: version
+    attributes:
+      label: cli version
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: OS / arch
+  - type: input
+    id: command
+    attributes:
+      label: Command (path only)
+  - type: input
+    id: endpoint
+    attributes:
+      label: Endpoint
+  - type: input
+    id: status
+    attributes:
+      label: HTTP status
+  - type: textarea
+    id: body_excerpt
+    attributes:
+      label: Response excerpt (redacted by the cli)
+      render: text
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else
+      description: Output of `leroymerlin doctor`, or the `--debug` log.

@@ -1,0 +1,56 @@
+name: verify release
+
+# Installs a published release the way a user would (archive + checksum +
+# attestation), on each OS, without Go, and checks the version it reports.
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: release tag to verify, e.g. v0.1.0
+        required: true
+  pull_request:
+    paths:
+      - .github/workflows/verify-release.yml
+
+permissions:
+  contents: read
+
+jobs:
+  install:
+    # A pull request only checks that the workflow parses and runs; there is
+    # no tag to install until the first release.
+    if: github.event_name == 'workflow_dispatch'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            asset: linux_amd64.tar.gz
+          - os: macos-latest
+            asset: darwin_arm64.tar.gz
+          - os: windows-latest
+            asset: windows_amd64.zip
+    runs-on: ${{ matrix.os }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ inputs.tag }}
+    steps:
+      - name: download, verify and run
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          version="${TAG#v}"
+          archive="leroymerlin_${version}_${{ matrix.asset }}"
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern "$archive" --pattern checksums.txt
+          gh attestation verify checksums.txt --repo "$GITHUB_REPOSITORY"
+          grep " ${archive}\$" checksums.txt > want.txt
+          if command -v sha256sum >/dev/null; then sha256sum -c want.txt; else shasum -a 256 -c want.txt; fi
+          case "$archive" in
+            *.zip) unzip -o "$archive" leroymerlin.exe; bin=./leroymerlin.exe ;;
+            *) tar xzf "$archive" leroymerlin; bin=./leroymerlin ;;
+          esac
+          got="$("$bin" --version | tr -d '\r')"
+          echo "$got"
+          test "$got" = "leroymerlin $version"
+          "$bin" skills list
