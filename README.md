@@ -173,6 +173,7 @@ requests go one at a time, at least 1.5 seconds apart, and that spacing carries 
 
 - [docs/cli-spec.md](docs/cli-spec.md): the interface contract
 - [docs/leroymerlin-api-discovery.md](docs/leroymerlin-api-discovery.md): what the site does, endpoint by endpoint
+- [docs/troubleshooting.md](docs/troubleshooting.md): common failures and the fix
 - [docs/adr](docs/adr): decisions (session replay, tls fingerprint, read-only)
 - [AGENTS.md](AGENTS.md): vocabulary and rules for contributors and agents
 
