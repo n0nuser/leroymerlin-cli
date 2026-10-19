@@ -114,7 +114,10 @@ Output is JSON by default so every command pipes into jq. Use --format pretty
 for humans. Errors go to stderr; exit codes are in docs/cli-spec.md.
 
 Examples:
-  leroymerlin store list --format pretty
+  leroymerlin search "cemento cola" --format pretty
+  leroymerlin product stock 81866477
+  leroymerlin store list --query madrid
+  leroymerlin watch add search "cemento cola" --max-price 20 --name cola
   leroymerlin auth login --cookies ~/Downloads/leroymerlin-cookies.json
   leroymerlin doctor
 
