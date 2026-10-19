@@ -143,7 +143,8 @@ Agent usage: leroymerlin skills get leroymerlin-usage`,
 
 	root.AddCommand(
 		a.authCmd(), a.loginCmd(), a.profileCmd(),
-		a.storeCmd(), a.categoryCmd(),
+		a.searchCmd(), a.productCmd(), a.storeCmd(), a.categoryCmd(),
+		a.watchCmd(), a.sinkCmd(),
 		a.configCmd(), a.doctorCmd(),
 		a.mcpCmd(), a.skillsCmd(), a.updateCmd(),
 	)

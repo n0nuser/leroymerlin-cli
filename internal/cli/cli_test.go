@@ -36,7 +36,22 @@ func fakeSite(t *testing.T, home *string) *httptest.Server {
 				return
 			}
 			http.SetCookie(w, &http.Cookie{Name: "datadome", Value: "ROTATED", Domain: ".leroymerlin.es", Path: "/", MaxAge: 3600})
-			w.Write([]byte("<html>home</html>"))
+			w.Write(fixture("home_nostore.html"))
+		case "/search":
+			switch {
+			case r.URL.Query().Get("p") == "2":
+				w.Write(fixture("search_cemento_cola_page2.html"))
+			case r.URL.Query().Get("filters") != "":
+				w.Write(fixture("search_cemento_cola_filtered.html"))
+			default:
+				w.Write(fixture("search_cemento_cola.html"))
+			}
+		case "/productos/construccion/cementos-morteros-y-yesos/cementos/":
+			w.Write(fixture("category_cementos.html"))
+		case "/productos/cemento-cola-pegoland-blanco-25-kg-81866477.html":
+			w.Write(fixture("product_81866477.html"))
+		case "/productos/mortero-cola-axton-flexible-gel-blanco-25-kg-81944344.html":
+			w.Write(fixture("product_81944344.html"))
 		default:
 			w.WriteHeader(404)
 		}

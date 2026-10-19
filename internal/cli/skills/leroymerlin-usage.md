@@ -20,9 +20,18 @@ Without a session only `store list`, `category list` and `doctor` work.
 | `store list [--query Q] [--compact]` | no | `[{slug,name,compact,url}]` |
 | `category list [--parent PATH] [--depth N] [--query Q]` | no | `[{path,name,depth,parent,url}]` |
 | `doctor` | no | `{ok,profile,session_valid,challenged,checks:[{name,ok,detail}]}` |
+| `store current` | yes | `{id,name}` of the selected store, or exit 4 |
+| `search [KEYWORDS] [--category PATH] [--brand B] [--min-price N] [--max-price N] [--in-stock] [--sold-by-leroy-merlin] [--sort relevance\|price-asc\|price-desc] [--page N] [--limit N]` | yes | `{query,page,pages,total,sort,filters,products:[...],shown}` |
+| `product show REF` / `product stock REF` | yes | a product, or `{ref,name,store,online,deliveries}` |
+| `watch add search / add product`, `watch list`, `watch check --all`, `watch events` | yes (add/check) | watch or events |
+| `sink list`, `sink test NAME` | no | sinks from config.toml |
 | `auth login / status / logout` | | session summary |
 | `profile list / use / remove` | | |
 | `config path / list / get / set` | | |
+
+`REF` is the 8-digit product reference or a product URL. `search` reads the products the page embeds (about 18) and reports the site's total; it does not chase the lazy tail, so keep loops to a few pages.
+
+Without a selected store the product page reports online availability and home delivery only. `store current` exits 4 in that case: the fix is a cookie export that includes HttpOnly cookies (devtools or a HAR), taken after choosing a store.
 
 ## Exit codes
 

@@ -69,7 +69,31 @@ Examples:
 	}
 	list.Flags().StringVarP(&query, "query", "q", "", "only stores whose name or slug contains this (accents ignored)")
 	list.Flags().BoolVar(&compact, "compact", false, "only the smaller \"Compact\" format stores")
-	cmd.AddCommand(list)
+	current := &cobra.Command{
+		Use:   "current",
+		Short: "The store selected in the session (stock follows it)",
+		Long: `Show the store the imported browser session has selected ("Elegir mi tienda").
+
+Stock is always for that store. Without a selection the site reports online
+availability only; choose a store in the browser the session came from and
+import the cookies again.`,
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := a.requireSession(); err != nil {
+				return err
+			}
+			s, err := a.Client.CurrentStore(cmd.Context())
+			if err != nil {
+				return err
+			}
+			if s == nil {
+				return &leroymerlin.Error{Kind: leroymerlin.KindNotFound,
+					Msg: "this session has no store selected. Open leroymerlin.es in the browser it came from, choose a store (\"Elegir mi tienda\"), and import the cookies again"}
+			}
+			return a.Printer.Print(storeRefView{*s})
+		},
+	}
+	cmd.AddCommand(list, current)
 	return cmd
 }
 
@@ -133,6 +157,15 @@ Examples:
 	list.Flags().StringVarP(&query, "query", "q", "", "only categories whose name or path contains this (accents ignored)")
 	cmd.AddCommand(list)
 	return cmd
+}
+
+// storeRefView pretty-prints the store selected in the session.
+type storeRefView struct {
+	leroymerlin.StoreRef
+}
+
+func (s storeRefView) Pretty(w io.Writer, color bool) {
+	output.Table(w, color, nil, [][]string{{"id", s.ID}, {"name", s.Name}})
 }
 
 // fold lowercases and strips Spanish accents so "almeria" finds "Almería".

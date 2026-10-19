@@ -45,6 +45,40 @@ var Tools = []Tool{
 		},
 	},
 	{
+		Name: "search", Command: []string{"search"},
+		Description: "Search the catalogue or browse a category. Mirrors `leroymerlin search`; returns {query,page,pages,total,sort,products:[{ref,name,brand,url,price,available}]}. Needs a session.",
+		Params: []Param{
+			{Name: "keywords", Type: "string", Description: "search terms (omit when using category)"},
+			{Name: "category", Type: "string", Flag: "--category", Description: "category path to browse instead of a text search"},
+			{Name: "brand", Type: "string", Flag: "--brand", Description: "brand filter (the site's Marca facet)"},
+			{Name: "min_price", Type: "string", Flag: "--min-price", Description: "minimum price in euro"},
+			{Name: "max_price", Type: "string", Flag: "--max-price", Description: "maximum price in euro"},
+			{Name: "sort", Type: "string", Flag: "--sort", Description: "relevance, price-asc or price-desc"},
+			{Name: "page", Type: "integer", Flag: "--page", Description: "result page, starting at 1"},
+			{Name: "limit", Type: "integer", Flag: "--limit", Description: "keep at most N products"},
+			{Name: "in_stock", Type: "boolean", Flag: "--in-stock", Description: "only products the site can add to the cart"},
+			{Name: "sold_by_leroy_merlin", Type: "boolean", Flag: "--sold-by-leroy-merlin", Description: "only products the site sells itself"},
+		},
+	},
+	{
+		Name: "product_show", Command: []string{"product", "show"},
+		Description: "Read one product by reference or URL. Mirrors `leroymerlin product show`; returns the product, its price and its delivery options. Needs a session.",
+		Params: []Param{
+			{Name: "ref", Type: "string", Description: "8-digit product reference or full product URL", Required: true},
+		},
+	},
+	{
+		Name: "product_stock", Command: []string{"product", "stock"},
+		Description: "Availability of one product: the store selected in the session (when there is one), online availability and delivery options. Needs a session.",
+		Params: []Param{
+			{Name: "ref", Type: "string", Description: "8-digit product reference or full product URL", Required: true},
+		},
+	},
+	{
+		Name: "store_current", Command: []string{"store", "current"},
+		Description: "The store selected in the session. Stock follows it. Needs a session.",
+	},
+	{
 		Name: "doctor", Command: []string{"doctor"},
 		Description: "Check the session and whether the storefront accepts it or challenges it. Mirrors `leroymerlin doctor`.",
 	},
