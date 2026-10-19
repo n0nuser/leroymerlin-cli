@@ -1,0 +1,17 @@
+{
+  "title": "Command reference",
+  "pages": [
+    "index",
+    "global-flags",
+    "auth",
+    "category",
+    "config",
+    "doctor",
+    "login",
+    "mcp",
+    "profile",
+    "skills",
+    "store",
+    "update"
+  ]
+}

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 120" role="img" aria-label="leroymerlin cli">
+  <rect x="4" y="4" width="112" height="112" rx="22" fill="#1c1917"/>
+  <g fill="#fbbf24">
+    <rect x="22" y="76" width="34" height="17" rx="3"/>
+    <rect x="62" y="76" width="36" height="17" rx="3"/>
+    <rect x="39" y="55" width="42" height="17" rx="3"/>
+  </g>
+  <path d="M26 26l15 11-15 11" fill="none" stroke="#fafaf9" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="48" y="44" width="22" height="6.5" rx="3.25" fill="#fafaf9"/>
+  <text x="140" y="74" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="44" font-weight="700" fill="#b45309">leroymerlin<tspan fill="#78716c" font-weight="400"> cli</tspan></text>
+</svg>
