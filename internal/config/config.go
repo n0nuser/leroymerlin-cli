@@ -42,10 +42,27 @@ func DefaultPaths() Paths {
 	return p
 }
 
+// SinkConfig is one [sinks.NAME] table: where watch events are copied.
+type SinkConfig struct {
+	Type      string   `toml:"type" json:"type"`
+	URL       string   `toml:"url,omitempty" json:"url,omitempty"`
+	Topic     string   `toml:"topic,omitempty" json:"topic,omitempty"`
+	TokenFile string   `toml:"token_file,omitempty" json:"token_file,omitempty"`
+	Template  string   `toml:"template,omitempty" json:"template,omitempty"`
+	Command   []string `toml:"command,omitempty" json:"command,omitempty"`
+}
+
+// WatchConfig is the [watch] table.
+type WatchConfig struct {
+	Interval string `toml:"interval,omitempty" json:"interval,omitempty"`
+}
+
 // Config is config.toml. Unknown keys are errors, so a typo never silently
 // does nothing.
 type Config struct {
-	DefaultProfile string `toml:"default_profile,omitempty" json:"default_profile,omitempty"`
+	DefaultProfile string                `toml:"default_profile,omitempty" json:"default_profile,omitempty"`
+	Watch          WatchConfig           `toml:"watch,omitempty" json:"watch,omitempty"`
+	Sinks          map[string]SinkConfig `toml:"sinks,omitempty" json:"sinks,omitempty"`
 }
 
 // Load reads config.toml; a missing file is an empty config.
