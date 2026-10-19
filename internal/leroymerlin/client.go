@@ -16,6 +16,7 @@ import (
 	"net/url"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -35,6 +36,29 @@ const DefaultMinInterval = 1500 * time.Millisecond
 
 // maxBody caps any response read into memory.
 const maxBody = 32 << 20
+
+// Retry policy for transient failures: two extra attempts, backing off from
+// retryBase (500ms, then 1s) and never waiting longer than retryCap. Bot
+// protection (403) is never retried.
+const (
+	maxAttempts = 3
+	retryCap    = 5 * time.Second
+	// maxRetryAfter is the longest Retry-After the client will wait out. A
+	// longer one is surfaced with the wait time instead.
+	maxRetryAfter = 5 * time.Minute
+)
+
+// retryBase is a variable so tests can shrink the backoff.
+var retryBase = 500 * time.Millisecond
+
+// retryBackoff is the wait before attempt n+1: 500ms, then 1s, capped.
+func retryBackoff(attempt int) time.Duration {
+	d := retryBase << attempt
+	if d > retryCap || d <= 0 {
+		return retryCap
+	}
+	return d
+}
 
 // Client talks to leroymerlin.es. It is safe for concurrent use, but requests
 // are serialized through the rate gate on purpose.
@@ -121,7 +145,90 @@ func (c *Client) GetXML(ctx context.Context, path string) (*Page, error) {
 	return c.get(ctx, path, map[string]string{"Accept": "application/xml,text/xml;q=0.9,*/*;q=0.8"})
 }
 
+// get runs attempt with the documented retry policy. It retries 5xx and
+// timeout errors (KindNetwork + Retryable) up to maxAttempts, and an HTTP 429
+// once when its Retry-After is short enough. A 403 challenge is returned as
+// it is: retrying it would only dig the session deeper.
 func (c *Client) get(ctx context.Context, path string, headers map[string]string) (*Page, error) {
+	rateRetried := false
+	for attempt := 0; ; attempt++ {
+		p, err := c.attempt(ctx, path, headers)
+		if err == nil {
+			return p, nil
+		}
+		var le *Error
+		if !errors.As(err, &le) {
+			return nil, err
+		}
+		if le.Status == http.StatusTooManyRequests && !rateRetried {
+			if wait, ok := retryAfter(p, time.Now()); ok {
+				if wait > maxRetryAfter {
+					return nil, &Error{Kind: KindBlocked, Status: le.Status, Endpoint: le.Endpoint, Retryable: true,
+						Msg: fmt.Sprintf("leroymerlin.es is rate limiting; retry after %s", wait.Round(time.Second))}
+				}
+				rateRetried = true
+				c.logf("GET %s -> 429, waiting %s (Retry-After)", path, wait.Round(time.Second))
+				if err := sleep(ctx, wait); err != nil {
+					return nil, err
+				}
+				continue
+			}
+		}
+		if le.Kind == KindNetwork && le.Retryable && attempt+1 < maxAttempts {
+			wait := retryBackoff(attempt)
+			c.logf("GET %s -> %v, retrying in %s", path, err, wait)
+			if err := sleep(ctx, wait); err != nil {
+				return nil, err
+			}
+			continue
+		}
+		return nil, err
+	}
+}
+
+// retryAfter reads a Retry-After header as a delay from now, accepting seconds
+// and an HTTP-date. It reports false when the header is missing or unusable.
+func retryAfter(p *Page, now time.Time) (time.Duration, bool) {
+	if p == nil {
+		return 0, false
+	}
+	v := strings.TrimSpace(p.Header.Get("Retry-After"))
+	if v == "" {
+		return 0, false
+	}
+	if secs, err := strconv.Atoi(v); err == nil {
+		if secs < 0 {
+			secs = 0
+		}
+		return time.Duration(secs) * time.Second, true
+	}
+	if t, err := http.ParseTime(v); err == nil {
+		if d := t.Sub(now); d > 0 {
+			return d, true
+		}
+		return 0, true
+	}
+	return 0, false
+}
+
+// sleep waits for d or until ctx ends.
+func sleep(ctx context.Context, d time.Duration) error {
+	if d <= 0 {
+		return nil
+	}
+	t := time.NewTimer(d)
+	defer t.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-t.C:
+		return nil
+	}
+}
+
+// attempt is one request. It still enforces the process-wide pace, so retries
+// never crowd the site.
+func (c *Client) attempt(ctx context.Context, path string, headers map[string]string) (*Page, error) {
 	u, err := url.Parse(c.BaseURL + path)
 	if err != nil {
 		return nil, Usage("bad path %q: %v", path, err)
@@ -170,7 +277,7 @@ func (c *Client) get(ctx context.Context, path string, headers map[string]string
 	c.logf("GET %s -> %d (%d bytes, %s)", u.Path, resp.StatusCode, len(body), time.Since(start).Round(time.Millisecond))
 	p := &Page{URL: resp.Request.URL.String(), Status: resp.StatusCode, Header: resp.Header, Body: body}
 	if err := classify(p, u.Path); err != nil {
-		return nil, err
+		return p, err
 	}
 	return p, nil
 }
