@@ -81,5 +81,5 @@ also fills `endpoint`, `http_status` and `issue_url`.
 | `LEROYMERLIN_ERROR_FORMAT` | default `--error-format` |
 | `LEROYMERLIN_NO_UPDATE_CHECK` | never check for a new release |
 
-Flags win over environment variables. A session file always wins over a default
-profile in the config, because the profile selects which session file to read.
+Flags win over environment variables, and the environment wins over `config.toml`.
+A profile selects which session file to read; there is no global session.
