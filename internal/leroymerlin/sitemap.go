@@ -75,8 +75,12 @@ func ParseStores(raw []byte) ([]Store, error) {
 		}
 		slug = strings.TrimSuffix(slug, ".html")
 		name := strings.TrimSpace(u.Image.Title)
-		if name == "" {
-			name = slug
+		if name == "" { // a few entries have no image title
+			words := strings.Fields(strings.ReplaceAll(slug, "-", " "))
+			for i, w := range words {
+				words[i] = strings.ToUpper(w[:1]) + w[1:]
+			}
+			name = strings.Join(words, " ")
 		}
 		out = append(out, Store{Slug: slug, Name: name, Compact: strings.HasPrefix(slug, "compact-"), URL: u.Loc})
 	}
