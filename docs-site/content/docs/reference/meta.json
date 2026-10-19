@@ -1,0 +1,18 @@
+{
+  "title": "command reference",
+  "pages": [
+    "index",
+    "search",
+    "product",
+    "category",
+    "store",
+    "watch",
+    "sink",
+    "config",
+    "doctor",
+    "update",
+    "mcp",
+    "skills",
+    "login"
+  ]
+}

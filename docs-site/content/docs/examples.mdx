@@ -1,0 +1,80 @@
+---
+title: examples
+description: Small commands that show the shape of the output.
+---
+
+These examples use public data or a session imported from your own browser. None of
+them writes to leroymerlin.es.
+
+## find a store
+
+```bash
+leroymerlin store list --query valencia --format pretty
+```
+
+```bash
+leroymerlin store list --compact --format jsonl | jq -r .slug
+```
+
+The slug is the stable key. Store names change; the slug in `/tiendas/<slug>.html`
+does not.
+
+## browse the category tree
+
+Start at the top level and narrow down one step at a time:
+
+```bash
+leroymerlin category list --depth 1 --format pretty
+leroymerlin category list --parent construccion --depth 2 --format pretty
+leroymerlin category list --query cemento
+```
+
+Accents are ignored in `--query`, so `almeria` finds `Almería`.
+
+## import a browser session
+
+Choose a store on leroymerlin.es first, then export the cookies. Stock follows the
+store selected in the browser session.
+
+```bash
+leroymerlin auth login --cookies ~/Downloads/leroymerlin-cookies.json
+leroymerlin auth status --check
+```
+
+A HAR from DevTools also works and carries the browser's user agent:
+
+```bash
+leroymerlin auth login --har ~/Downloads/leroymerlin.har
+```
+
+## one profile per store
+
+A profile is one imported session. Use one profile per store to compare stock without
+re-importing cookies.
+
+```bash
+leroymerlin auth login --cookies madrid.json --profile madrid
+leroymerlin auth login --cookies getafe.json --profile getafe
+leroymerlin profile use madrid
+leroymerlin doctor --profile getafe
+```
+
+## read the config
+
+```bash
+leroymerlin config path
+leroymerlin config list
+leroymerlin config set default_profile madrid
+```
+
+The config file is plain TOML. Sessions are not stored there.
+
+## pipe the output
+
+```bash
+leroymerlin category list --format jsonl | jq -r 'select(.depth == 1) | .name'
+leroymerlin store list --format json | jq -r '.[].url'
+```
+
+Use `--no-input` in scripts and agents. It stops the cli from waiting on a prompt when
+something is missing; the command fails with exit `2` instead.

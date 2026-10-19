@@ -1,0 +1,98 @@
+---
+title: scheduling checks
+description: Run watch checks from cron, systemd or launchd so they continue after the terminal closes.
+---
+
+A watch only produces events when a check runs. The cli does not install a scheduler
+for you. Any scheduler that can run a command works.
+
+```bash
+leroymerlin watch check --all
+```
+
+Use `--no-input` in every scheduled command. Without a terminal the cli will not
+prompt, but the flag makes that explicit and keeps a misconfiguration from waiting
+forever.
+
+## cron
+
+```text
+*/15 * * * * /home/you/.local/bin/leroymerlin --no-input watch check --all >> /home/you/.local/state/leroymerlin-check.log 2>&1
+```
+
+Keep the output in a file you can read later. A watched query that breaks at 03:00 is
+easy to miss otherwise.
+
+## systemd user timer
+
+`watch.service`:
+
+```ini
+[Unit]
+Description=leroymerlin watch check
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/leroymerlin --no-input watch check --all
+```
+
+`watch.timer`:
+
+```ini
+[Unit]
+Description=run leroymerlin watch checks every 15 minutes
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=15min
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+```
+
+```bash
+systemctl --user daemon-reload
+systemctl --user enable --now watch.timer
+systemctl --user list-timers | grep watch
+```
+
+Enable lingering if the timer must run while you are logged out:
+
+```bash
+loginctl enable-linger "$USER"
+```
+
+## launchd
+
+On macOS, a launchd agent works the same way. Point `ProgramArguments` at the binary
+and the `watch check --all` arguments, set a `StartInterval` in seconds, and keep
+`StandardOutPath` and `StandardErrorPath` somewhere you will look.
+
+## avoid overlapping runs
+
+A check can take longer than the interval when the site is slow. Wrap it in `flock` so
+two checks do not write the same state at once:
+
+```bash
+flock -n /tmp/leroymerlin-watch.lock leroymerlin --no-input watch check --all
+```
+
+`flock` is available on Linux. On macOS use `shlock` or a small wrapper that creates a
+lock directory atomically.
+
+## more than one store
+
+Each profile has its own session, store and watches. Schedule one command per profile
+when you follow more than one store:
+
+```bash
+leroymerlin --profile madrid --no-input watch check --all
+leroymerlin --profile getafe --no-input watch check --all
+```
+
+## logging
+
+The scheduler writes whatever the command prints. Keep the log small with your usual
+rotation tool, or send the output to a proper log collector. When a sink fails, the
+reason appears on stderr next to the events that were produced.

@@ -1,0 +1,71 @@
+---
+title: leroymerlin-cli
+description: A small, read-only terminal client for leroymerlin.es. Stores, categories, products and stock, with JSON by default.
+---
+
+`leroymerlin` is an unofficial command-line client for leroymerlin.es. It reads the
+public storefront and prints JSON, so a store list, a category tree or a stock check
+can go straight into a script, a timer or an agent.
+
+leroymerlin.es sits behind bot protection. The cli does not try to log in by itself:
+it replays the session of the browser you already use. Stores and categories come from
+the public sitemaps and work before you import anything.
+
+<Cards>
+  <Card title="Install" href="/docs/install">
+    Build the binary with Go, or install it from the module path.
+  </Card>
+  <Card title="Output" href="/docs/output">
+    JSON by default, jsonl for pipes and a table for reading.
+  </Card>
+  <Card title="Command reference" href="/docs/reference">
+    The full command tree, generated from the binary.
+  </Card>
+  <Card title="Watches" href="/docs/watches">
+    Save a query and report only what changed.
+  </Card>
+  <Card title="Exit codes" href="/docs/exit-codes">
+    Branch on a small, stable set of statuses.
+  </Card>
+</Cards>
+
+## A first look
+
+```bash
+leroymerlin store list --query madrid --format pretty
+leroymerlin category list --depth 1
+leroymerlin auth login --cookies ~/Downloads/leroymerlin-cookies.json
+leroymerlin doctor
+```
+
+Every command prints JSON unless asked otherwise. Errors go to stderr, so a pipe only
+sees results.
+
+```bash
+leroymerlin store list --format jsonl | jq -r .slug
+leroymerlin category list --query cemento --format json
+```
+
+## What it will not do
+
+The cli is read-only. It does not add to a cart, place an order, change account
+settings or write anything to leroymerlin.es. It has no password login: only an
+imported browser session gets past the bot protection.
+
+It is also deliberately slow. Requests are sequential and spaced apart, because this
+is a tool for one person checking a shelf, not a crawler.
+
+<Callout type="warn" title="unofficial">
+  There is no public API. The cli reads the same pages and sitemaps your browser
+  reads, so a site change can break it. When that happens it stops with exit `7` and
+  a prefilled issue link instead of returning empty results. See
+  [when the site changes](/docs/api-changes).
+</Callout>
+
+## Where to go next
+
+- [install](/docs/install) the binary.
+- [import a session](/docs/reference/login) so the storefront answers.
+- Read [output and formats](/docs/output) before writing a pipe.
+- Keep an eye on a query with [watches](/docs/watches) and a
+  [scheduled check](/docs/scheduling).

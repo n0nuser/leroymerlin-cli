@@ -1,0 +1,85 @@
+---
+title: output and formats
+description: JSON by default, jsonl for pipes, and a table when you want to read it.
+---
+
+Commands print JSON on stdout. Errors go to stderr, always as prose unless you ask for
+the envelope. That split means a pipeline can read stdout without filtering warnings
+out of it.
+
+```bash
+leroymerlin store list | jq '.[0]'
+```
+
+## formats
+
+<Tabs items={['json', 'jsonl', 'pretty']} id="format">
+  <Tab value="json">
+    The default. One indented JSON document.
+
+    ```bash
+    leroymerlin category list --depth 2
+    ```
+  </Tab>
+  <Tab value="jsonl">
+    One object per line. Arrays are split into their elements, which makes the output
+    safe to stream into `jq`, `while read` or a log collector.
+
+    ```bash
+    leroymerlin store list --format jsonl | jq -r .slug
+    ```
+  </Tab>
+  <Tab value="pretty">
+    A compact table for reading in a terminal. Commands that have no table fall back to
+    indented JSON.
+
+    ```bash
+    leroymerlin store list --format pretty
+    leroymerlin category list --parent construccion --format pretty
+    ```
+  </Tab>
+</Tabs>
+
+Colour follows `NO_COLOR`, `TERM=dumb` and whether stdout is a terminal. `--no-color`
+turns it off explicitly.
+
+## errors
+
+Errors are written to stderr as a short message. Exit codes are documented on
+[exit codes](/docs/exit-codes).
+
+For scripts, ask for the machine-readable envelope:
+
+```bash
+leroymerlin --error-format json auth status --check
+```
+
+```json
+{
+  "code": 3,
+  "category": "auth",
+  "retryable": false,
+  "message": "profile \"default\" has no session",
+  "suggested_commands": [
+    "leroymerlin auth status",
+    "leroymerlin auth login --cookies FILE"
+  ]
+}
+```
+
+`code` and `category` are stable. `message` is for humans and may change. An API change
+also fills `endpoint`, `http_status` and `issue_url`.
+
+## environment
+
+| variable | effect |
+| --- | --- |
+| `NO_COLOR` | disable colour in pretty output |
+| `LEROYMERLIN_PROFILE` | default profile when `--profile` is absent |
+| `LEROYMERLIN_CONFIG` | use another `config.toml` |
+| `LEROYMERLIN_COOKIEJAR` | read a cookie export on every run instead of a stored session |
+| `LEROYMERLIN_ERROR_FORMAT` | default `--error-format` |
+| `LEROYMERLIN_NO_UPDATE_CHECK` | never check for a new release |
+
+Flags win over environment variables. A session file always wins over a default
+profile in the config, because the profile selects which session file to read.

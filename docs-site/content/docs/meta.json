@@ -1,0 +1,17 @@
+{
+  "title": "leroymerlin-cli",
+  "pages": [
+    "index",
+    "---getting started---",
+    "install",
+    "---using it---",
+    "output",
+    "examples",
+    "watches",
+    "scheduling",
+    "---reference---",
+    "reference",
+    "exit-codes",
+    "api-changes"
+  ]
+}

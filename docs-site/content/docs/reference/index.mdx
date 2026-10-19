@@ -1,0 +1,37 @@
+---
+title: command reference
+description: Every command and flag, generated from the binary.
+---
+
+The cli has a small noun-verb surface:
+
+- `search` queries the catalogue.
+- `product` reads one product and its stock.
+- `category` and `store` read the public sitemaps.
+- `watch` saves a query and reports changes.
+- `sink` sends watch events somewhere other than stdout.
+- `config`, `doctor`, `update`, `mcp`, `skills` and `login` cover setup and agents.
+
+Each page below is generated from the cobra command tree. For the version you have
+installed, `leroymerlin <command> --help` is always the final word.
+
+## global flags
+
+| flag | effect |
+| --- | --- |
+| `--profile NAME` | session and store to act as |
+| `--format json\|jsonl\|pretty` | stdout rendering |
+| `--error-format text\|json` | stderr rendering |
+| `--no-input` | never prompt |
+| `--no-color` | disable colour |
+| `--debug` | log requests to stderr, with secrets redacted |
+
+## common tasks
+
+```bash
+leroymerlin store list --format pretty
+leroymerlin category list --depth 2
+leroymerlin search "cemento cola" --format pretty
+leroymerlin product show 81866477
+leroymerlin doctor
+```
