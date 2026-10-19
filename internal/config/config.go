@@ -25,6 +25,7 @@ type Paths struct {
 	SessionsDir string
 	StateDB     string
 	StateDir    string
+	DataDir     string
 	ChromeDir   string
 }
 
@@ -36,6 +37,7 @@ func DefaultPaths() Paths {
 		SessionsDir: filepath.Join(xdg.ConfigHome, appDir, "sessions"),
 		StateDB:     filepath.Join(xdg.DataHome, appDir, "state.db"),
 		StateDir:    filepath.Join(xdg.StateHome, appDir),
+		DataDir:     filepath.Join(xdg.DataHome, appDir),
 		ChromeDir:   filepath.Join(xdg.DataHome, appDir, "chrome"),
 	}
 	if v := os.Getenv("LEROYMERLIN_CONFIG"); v != "" {

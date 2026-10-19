@@ -34,7 +34,7 @@ func TestHarvestCommandSurface(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("harvest --help exit %d: %s", code, errOut)
 	}
-	for _, flag := range []string{"--browser-url", "--chrome", "--user-agent", "--timeout", "LEROYMERLIN_CHROME_URL", "LEROYMERLIN_CHROME"} {
+	for _, flag := range []string{"--browser-url", "--chrome", "--profile", "--user-agent", "--timeout", "LEROYMERLIN_CHROME_URL", "LEROYMERLIN_CHROME", "LEROYMERLIN_CHROME_PROFILE"} {
 		if !strings.Contains(out, flag) {
 			t.Errorf("harvest help does not mention %s:\n%s", flag, out)
 		}
@@ -57,6 +57,20 @@ func TestResolveChromeEnv(t *testing.T) {
 	t.Setenv(chromePathEnv, "")
 	if u, c := resolveChromeEnv("", ""); u != "" || c != "" {
 		t.Fatalf("empty env produced %q %q", u, c)
+	}
+}
+
+func TestResolveChromeProfile(t *testing.T) {
+	t.Setenv(chromeProfileEnv, "/env/chrome-profile")
+	if got := resolveChromeProfile("/flag/chrome-profile"); got != "/flag/chrome-profile" {
+		t.Fatalf("flag did not win: %q", got)
+	}
+	if got := resolveChromeProfile(""); got != "/env/chrome-profile" {
+		t.Fatalf("env not used: %q", got)
+	}
+	t.Setenv(chromeProfileEnv, "")
+	if got := resolveChromeProfile(""); got != "" {
+		t.Fatalf("empty env produced %q", got)
 	}
 }
 

@@ -14,12 +14,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -36,8 +39,9 @@ const Domain = "leroymerlin.es"
 const Home = "https://www.leroymerlin.es/"
 
 // DefaultDebugURL is probed when no endpoint is given: a Chrome started with
-// --remote-debugging-port=9222.
-const DefaultDebugURL = "http://localhost:9222"
+// --remote-debugging-port=9222. IPv4 on purpose: Chrome binds 127.0.0.1 and
+// "localhost" can resolve to ::1 on Linux.
+const DefaultDebugURL = "http://127.0.0.1:9222"
 
 // DefaultTimeout is how long a person gets to clear a challenge.
 const DefaultTimeout = 5 * time.Minute
@@ -52,19 +56,28 @@ type Options struct {
 	BrowserURL string
 	// Chrome is the browser binary. Empty searches PATH and the usual places.
 	Chrome string
-	// UserDataDir is the profile a launched browser keeps, so the DataDome
-	// session survives across runs.
+	// UserDataDir is the profile a fresh launched browser keeps, so the
+	// DataDome session survives across runs.
 	UserDataDir string
+	// ProfileDir is the real Chrome profile to copy. Empty auto-detects one.
+	ProfileDir string
+	// TempDir is the parent for the copied profile. Empty uses the user cache.
+	TempDir string
 	// UserAgent overrides the browser's own when reading it.
 	UserAgent string
 	// Timeout bounds the wait for the challenge to clear.
 	Timeout time.Duration
 }
 
-// Result is what the browser gave: its user agent and every cookie.
+// Result is what the browser gave: its user agent and every cookie, and where
+// the browser came from.
 type Result struct {
 	UserAgent string
 	Cookies   []*network.Cookie
+	// Source is "attach", "profile" or "fresh".
+	Source string
+	// Profile is the real Chrome profile root when Source is "profile".
+	Profile string
 }
 
 // Run opens the site, waits for the challenge to clear, then reads the
@@ -73,18 +86,34 @@ func Run(ctx context.Context, o Options) (Result, error) {
 	if o.Timeout <= 0 {
 		o.Timeout = DefaultTimeout
 	}
-	allocCtx, cancelAlloc, err := allocator(ctx, o)
-	if err != nil {
+	if o.BrowserURL != "" {
+		ctx, cancel := remote.NewAllocator(ctx, NormalizeDebugURL(o.BrowserURL))
+		defer cancel()
+		return read(ctx, o, "attach", "")
+	}
+	root, err := DetectProfile(o.ProfileDir)
+	if err == nil {
+		return runCopied(ctx, o, root)
+	}
+	if o.ProfileDir != "" {
+		// An explicit profile that does not work is an error, not a silent
+		// switch to a fresh browser with no session.
 		return Result{}, err
 	}
-	defer cancelAlloc()
-	browserCtx, cancelBrowser := chromedp.NewContext(allocCtx)
+	// No real profile: a fresh browser may need a person to clear a check.
+	return runFresh(ctx, o)
+}
+
+// read drives one browser context: open the home page, wait for the
+// challenge, then read the cookies and user agent.
+func read(ctx context.Context, o Options, source, profile string) (Result, error) {
+	browserCtx, cancelBrowser := chromedp.NewContext(ctx)
 	defer cancelBrowser()
 
 	if _, err := chromedp.Run(browserCtx, chromedp.Navigate(Home)); err != nil {
 		return Result{}, fmt.Errorf("opening %s: %w", Home, err)
 	}
-	if err := waitClear(ctx, browserCtx, o.Timeout); err != nil {
+	if err := waitClear(ctx, browserCtx, o.Timeout, source == "profile"); err != nil {
 		return Result{}, err
 	}
 	ua, err := chromedp.Run(browserCtx, chromedp.Evaluate[string](userAgentJS))
@@ -99,31 +128,66 @@ func Run(ctx context.Context, o Options) (Result, error) {
 	if err != nil {
 		return Result{}, fmt.Errorf("reading the cookies: %w", err)
 	}
-	return Result{UserAgent: ua, Cookies: cookies}, nil
+	return Result{UserAgent: ua, Cookies: cookies, Source: source, Profile: profile}, nil
 }
 
-func allocator(ctx context.Context, o Options) (context.Context, context.CancelFunc, error) {
-	if o.BrowserURL != "" {
-		ctx, cancel := remote.NewAllocator(ctx, o.BrowserURL)
-		return ctx, cancel, nil
+// runCopied copies the real profile's cookie store into a temporary 0700
+// directory, launches Chrome on it with a free DevTools port, and always
+// removes the copy and the browser on the way out.
+func runCopied(ctx context.Context, o Options, root string) (res Result, err error) {
+	temp, cleanup, err := PrepareProfile(root, o.TempDir)
+	if err != nil {
+		return Result{}, err
 	}
+	defer func() {
+		if cerr := cleanup(); cerr != nil && err == nil {
+			err = fmt.Errorf("removing the temporary Chrome profile: %w", cerr)
+		}
+	}()
 	path, err := FindChrome(o.Chrome, execLookPath)
 	if err != nil {
-		return nil, nil, err
+		return Result{}, err
+	}
+	port, err := FreePort()
+	if err != nil {
+		return Result{}, fmt.Errorf("finding a free DevTools port: %w", err)
 	}
 	opts := append(slices.Clone(chromedp.DefaultExecAllocatorOptions[:]),
+		// A fixed debugging port means chromedp talks over a websocket, so
+		// the allocator needs the remote dialer.
+		remote.WebSocket,
 		// Headed on purpose: DataDome shows a captcha a person has to clear.
 		// VisibleWindow drops --headless and the "controlled by software"
 		// infobar; it needs a display.
 		chromedp.VisibleWindow,
 		chromedp.ExecPath(path),
-		chromedp.UserDataDir(o.UserDataDir),
+		chromedp.UserDataDir(temp),
+		chromedp.Flag("remote-debugging-port", strconv.Itoa(port)),
+		chromedp.Flag("remote-debugging-address", "127.0.0.1"),
 	)
-	ctx, cancel := chromedp.NewExecAllocator(ctx, opts...)
-	return ctx, cancel, nil
+	allocCtx, cancel := chromedp.NewExecAllocator(ctx, opts...)
+	defer cancel() // kills the browser this allocator started
+	return read(allocCtx, o, "profile", root)
 }
 
-func waitClear(ctx context.Context, browserCtx context.Context, timeout time.Duration) error {
+// runFresh launches a browser with its own persistent profile. It is the
+// fallback when no real profile exists, and may need a human to clear a check.
+func runFresh(ctx context.Context, o Options) (Result, error) {
+	path, err := FindChrome(o.Chrome, execLookPath)
+	if err != nil {
+		return Result{}, err
+	}
+	opts := append(slices.Clone(chromedp.DefaultExecAllocatorOptions[:]),
+		chromedp.VisibleWindow,
+		chromedp.ExecPath(path),
+		chromedp.UserDataDir(o.UserDataDir),
+	)
+	allocCtx, cancel := chromedp.NewExecAllocator(ctx, opts...)
+	defer cancel()
+	return read(allocCtx, o, "fresh", "")
+}
+
+func waitClear(ctx context.Context, browserCtx context.Context, timeout time.Duration, copied bool) error {
 	deadline := time.Now().Add(timeout)
 	for {
 		clear, err := chromedp.Run(browserCtx, chromedp.Evaluate[bool](clearJS))
@@ -133,6 +197,9 @@ func waitClear(ctx context.Context, browserCtx context.Context, timeout time.Dur
 			}
 		}
 		if time.Now().After(deadline) {
+			if copied {
+				return fmt.Errorf("the challenge was not cleared within %s. If the window shows the site but not your session, Chrome could not decrypt the copied cookies (the OS keychain must be available). Otherwise solve the check in the window and run `leroymerlin auth harvest` again", timeout)
+			}
 			return fmt.Errorf("the challenge was not cleared within %s. Solve it in the browser window and run `leroymerlin auth harvest` again", timeout)
 		}
 		select {
@@ -214,6 +281,19 @@ func CookiesToExport(cookies []*network.Cookie, userAgent string) ([]byte, error
 	return json.Marshal(out)
 }
 
+// NormalizeDebugURL points a local DevTools endpoint at 127.0.0.1, because
+// "localhost" can resolve to ::1 while Chrome listens on IPv4.
+func NormalizeDebugURL(raw string) string {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return raw
+	}
+	if strings.EqualFold(u.Hostname(), "localhost") {
+		u.Host = net.JoinHostPort("127.0.0.1", u.Port())
+	}
+	return u.String()
+}
+
 // execLookPath is exec.LookPath, as a variable so tests can stand in for it.
 var execLookPath = exec.LookPath
 
@@ -274,18 +354,13 @@ func FindChrome(override string, lookPath func(string) (string, error)) (string,
 	return "", errors.New("no Chrome or Chromium found. Install one, or set --chrome/LEROYMERLIN_CHROME to its path")
 }
 
-func isFile(path string) bool {
-	fi, err := os.Stat(path)
-	return err == nil && !fi.IsDir()
-}
-
 // DebugURLReachable reports whether a Chrome debug endpoint answers, so the
 // command can attach to a browser a person already has open.
 func DebugURLReachable(ctx context.Context, url string, hc *http.Client) bool {
 	if hc == nil {
 		hc = &http.Client{Timeout: 700 * time.Millisecond}
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, strings.TrimRight(url, "/")+"/json/version", nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, strings.TrimRight(NormalizeDebugURL(url), "/")+"/json/version", nil)
 	if err != nil {
 		return false
 	}

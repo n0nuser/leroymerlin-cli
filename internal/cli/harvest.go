@@ -16,13 +16,15 @@ import (
 
 // The harvest can be pointed at a browser without a flag.
 const (
-	chromeURLEnv  = "LEROYMERLIN_CHROME_URL"
-	chromePathEnv = "LEROYMERLIN_CHROME"
+	chromeURLEnv     = "LEROYMERLIN_CHROME_URL"
+	chromePathEnv    = "LEROYMERLIN_CHROME"
+	chromeProfileEnv = "LEROYMERLIN_CHROME_PROFILE"
 )
 
 type harvestFlags struct {
 	browserURL string
 	chrome     string
+	profile    string
 	userAgent  string
 	timeout    time.Duration
 }
@@ -40,15 +42,24 @@ window stays open while the command waits. If a Chrome debug endpoint is
 already running (--browser-url, LEROYMERLIN_CHROME_URL, or the default
 http://localhost:9222), the command attaches to it instead of launching.
 
-A launched browser keeps its profile under the data directory, so the session
-survives across runs. The harvested cookies and the browser's own user agent
-are stored 0600 exactly as ` + "`auth login`" + ` stores an export. Choose your
-store in that window before harvesting: stock follows it.
+By default it copies the cookie store of your real Chrome profile into a
+temporary directory, launches Chrome on that copy and reads the trusted session
+from it. Chrome 136+ ignores --remote-debugging-port on the default profile, so
+the copy is what makes the DevTools port work. The copy, and the browser that
+used it, are deleted on every path out. --profile picks the Chrome profile
+directory (not the session profile: use LEROYMERLIN_PROFILE or default_profile
+for that). Without a real profile it launches a fresh one, which may need a
+human to clear a check.
+
+The harvested cookies and the browser's own user agent are stored 0600 exactly
+as ` + "`auth login`" + ` stores an export. Choose your store in that window
+before harvesting: stock follows it.
 
 Examples:
   leroymerlin auth harvest
+  leroymerlin auth harvest --profile ~/.config/google-chrome
   leroymerlin auth harvest --chrome /usr/bin/chromium --timeout 2m
-  leroymerlin auth harvest --browser-url http://localhost:9222`,
+  leroymerlin auth harvest --browser-url http://127.0.0.1:9222`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if os.Getenv(config.CookieJarEnv) != "" {
@@ -59,7 +70,9 @@ Examples:
 			opts := harvest.Options{
 				BrowserURL:  browserURL,
 				Chrome:      chromePath,
+				ProfileDir:  resolveChromeProfile(f.profile),
 				UserDataDir: a.Paths.ChromeDir,
+				TempDir:     a.Paths.DataDir,
 				UserAgent:   f.userAgent,
 				Timeout:     f.timeout,
 			}
@@ -85,27 +98,38 @@ Examples:
 			}
 			a.Session = s
 			a.Client.Session = &s.Session
-			return a.Printer.Print(harvestResult{Profile: a.Profile, Path: s.Path, Format: s.ImportFormat, Skipped: imported.Skipped, Session: s.Summarize()})
+			return a.Printer.Print(harvestResult{Profile: a.Profile, Path: s.Path, Format: s.ImportFormat, Skipped: imported.Skipped, Session: s.Summarize(), Source: res.Source, ChromeProfile: res.Profile})
 		},
 	}
 	fl := cmd.Flags()
 	fl.StringVar(&f.browserURL, "browser-url", "", "attach to this Chrome DevTools endpoint instead of launching (env "+chromeURLEnv+"; default: probe "+harvest.DefaultDebugURL+")")
 	fl.StringVar(&f.chrome, "chrome", "", "Chrome or Chromium binary (env "+chromePathEnv+")")
+	fl.StringVar(&f.profile, "profile", "", "Chrome profile directory to copy (env "+chromeProfileEnv+"; default: auto-detect). Not the session profile: use LEROYMERLIN_PROFILE for that")
 	fl.StringVar(&f.userAgent, "user-agent", "", "override the user agent (default: the browser's own)")
 	fl.DurationVar(&f.timeout, "timeout", harvest.DefaultTimeout, "how long to wait for the challenge to clear")
 	return cmd
 }
 
 type harvestResult struct {
-	Profile string              `json:"profile"`
-	Path    string              `json:"path"`
-	Format  string              `json:"import_format"`
-	Skipped int                 `json:"skipped_other_domains"`
-	Session leroymerlin.Summary `json:"session"`
+	Profile       string              `json:"profile"`
+	Path          string              `json:"path"`
+	Format        string              `json:"import_format"`
+	Skipped       int                 `json:"skipped_other_domains"`
+	Session       leroymerlin.Summary `json:"session"`
+	Source        string              `json:"source,omitempty"`
+	ChromeProfile string              `json:"chrome_profile,omitempty"`
 }
 
 func (r harvestResult) Pretty(w io.Writer, color bool) {
 	fmt.Fprintf(w, "harvested %d leroymerlin.es cookies (%s) into profile %s\n", r.Session.Cookies, r.Format, r.Profile)
+	switch r.Source {
+	case "attach":
+		fmt.Fprintln(w, output.Dim("source: the Chrome you already had open", color))
+	case "profile":
+		fmt.Fprintln(w, output.Dim("source: copied Chrome profile "+r.ChromeProfile, color))
+	case "fresh":
+		fmt.Fprintln(w, "source: a fresh Chrome profile; choose your store, and clear any check it shows")
+	}
 	if r.Skipped > 0 {
 		fmt.Fprintln(w, output.Dim(fmt.Sprintf("skipped %d cookies for other sites", r.Skipped), color))
 	}
@@ -131,4 +155,10 @@ func firstNonEmpty(vals ...string) string {
 // flag wins, then the environment.
 func resolveChromeEnv(browserURL, chrome string) (string, string) {
 	return firstNonEmpty(browserURL, os.Getenv(chromeURLEnv)), firstNonEmpty(chrome, os.Getenv(chromePathEnv))
+}
+
+// resolveChromeProfile picks the Chrome profile directory: the flag wins, then
+// the environment, else empty for auto-detection.
+func resolveChromeProfile(flag string) string {
+	return firstNonEmpty(flag, os.Getenv(chromeProfileEnv))
 }
