@@ -71,31 +71,80 @@ There is one `<url>` per category page `/productos/<path>/`, 5,796 entries on 20
 
 `sitemap-index.xml` lists `sitemap-productos<N>.xml` (product URLs, about 21 MB each), `sitemap-searchdex*.xml`, `sitemap-services1.xml` and `sitemap-ideas-y-consejos1.xml`. Product URLs have the form `/productos/<slug>-<ref>.html`, where `<ref>` is the 8-digit reference, for example `/productos/cemento-cola-pegoland-blanco-25-kg-81866477.html`. The cli does not use these yet.
 
-### 3.4 Search: pending capture
+### 3.4 Search: `GET /search?q=<terms>`
 
-- **Path.** `GET /search?q=<terms>`. `/buscador?q=` redirects elsewhere.
-- **Rendering.** Results are server-rendered HTML.
-- **Seen so far.** Phase 0 saw these XHRs on the search page: `/header-cart-module/backend/rest/cart-data` and `/cdp-due--customer-context-module/api/get-context`. Neither carries results.
-- **Still to capture.** The filter, sort and pagination parameters. robots.txt disallows `filters=`, `sort=`, `limit=` and `facet=`, which suggests those are the parameter names.
+`/buscador?q=` redirects elsewhere. Results are server-rendered and the query string is small:
 
-### 3.5 Product and per-store stock: pending capture
+| parameter | values | meaning |
+|---|---|---|
+| `q` | text | keywords |
+| `p` | 1-based number | page |
+| `sort` | `relevance`, `price-asc`, `price-desc` | order; the page lists these three in `sorts` |
+| `filters` | JSON object, URL-encoded | facets; keys below |
 
-Product pages are `/productos/<slug>-<ref>.html`. The product page in phase 0 loaded these XHRs:
+Observed filter keys: `attribute-06575` (the Marca facet, value is the brand name as the page lists it, e.g. `SIKA`), `range-price-min` / `range-price-max` (euros as decimal strings), and `vendor` with value `internal` (the "Vendido por Leroy Merlin" toggle). Values with more than one choice are joined with `#|`. Example:
 
-- `/cdp-due--customer-context-module/api/{get,update}-context`. This is the customer and store context. It is the likely carrier of the selected store.
-- `/lazy/com.adeo.website.productpageservicesfunctionality.MeshingService`. This is probably the stock and delivery service. robots.txt disallows `*/productpageservicesfunctionality/*`.
-- `/components/productdetails/services/rag-productdetail/suggestions`
-- `/lazy/loyalty-*.fragment.adeo`
+```http
+GET /search?q=cemento+cola&p=2&sort=price-asc&filters=%7B%22range-price-min%22%3A%225%22%2C%22range-price-max%22%3A%2220%22%7D
+```
 
-Still to capture: where price and stock live, whether that is JSON-LD, embedded state, or the fragment above, and how the selected store is encoded.
+The page carries a `guidance-ssr-data` JSON island:
+
+- `body.pagination {currentPage, numberOfPages}`;
+- `body.products.number` (the total across pages);
+- `body.sorts [{code,label,applied}]`;
+- `body.filters {stockAndDeliveryFilters, productFilters}` with the choices and counts the drawer renders;
+- `header.query.original` (the text the site searched for).
+
+Products arrive in `cdl_products_list` islands (`<script type="application/json" class="dataTms">`): `{brand, identifier, name, url, offer:{add_to_cart_availability, unitprice_ati, unitprice_tf, seller_name, seller_type}, position, rating, product_is_sponsored}`. `unitprice_ati` is the price with tax, `unitprice_tf` without.
+
+Two facts matter for a parser:
+
+- The page embeds the main result island (18 products in the captures) plus a small 4-product island that is identical on every page (sponsored / recently viewed). The main island is the largest one.
+- Beyond the embedded products the cards are shimmer placeholders with a `data-lazy-url` to `ProductThumbnailFragment`, one request per card. The cli does not chase them: `search` reports the site's total and the products the page embedded. This keeps a page to one request.
+
+Category pages (`GET /productos/<path>/`) use the same guidance island and the same product islands, so `search --category PATH` shares the parser and the `p`, `sort` and `filters` parameters.
+
+Captures used: `search_cemento_cola.html` (relevance, page 1), `search_cemento_cola_filtered.html` (price 5–20, price-asc), `search_cemento_cola_page2.html` (page 2), `category_cementos.html` (leaf category). All four are real responses with cookies, ktx tokens and context ids stripped.
+
+### 3.5 Product and stock
+
+Product pages are `/productos/<slug>-<ref>.html`. Two blocks matter:
+
+- **`jsonld_PRODUCT`** (schema.org): `name`, `sku`, `gtin`, `description`, `image`, `offers {price, priceCurrency, availability, url}`, `aggregateRating {ratingValue, reviewCount}`.
+- **`cdl_products` dataTms islands**: the same product plus `offer.add_to_cart_availability`, `unitprice_ati` / `unitprice_tf`, seller, and `offer.available_deliveries [{price, stock, stockStatus, time, type}]`.
+
+In the captures `available_deliveries` has one entry, `type: homeDelivery`, `stockStatus: ONSITE`, with an online stock number and a delivery price. There is no pickup entry because the session has no store selected.
+
+The page also states the selected store:
+
+```html
+<div ... data-main-store-id="" ...>
+```
+
+and the tracking layer says `cdl_user_context_main_store: "no cookie here"`. The home page header shows "¿Dónde estás? / Selecciona una tienda". The captured session had no store, and its cookies carry no store selection (`cctx` is only a context UUID). So the cli can read online availability and delivery, but **per-store pickup stock is not verified yet**: it needs a session exported after choosing a store.
+
+The per-store stock dialog is fed by a lazy `MeshingService` fragment whose URL is signed per request:
+
+```
+/lazy/com.adeo.website.productpageservicesfunctionality.MeshingService?ktx=<token>
+```
+
+robots.txt disallows `*/productpageservicesfunctionality/*`. The cli does not request it and does not build a parser for it. If a store-selected session turns out to render pickup rows into `available_deliveries`, the existing product parser will read them without touching the disallowed service.
+
+Captures used: `product_81866477.html` (in stock online, 308 home delivery) and `product_81944344.html` (not available, no delivery rows). Both real, stripped.
+
+### 3.6 Cart, account, store selection
+
+Out of scope (ADR 0003). Choosing a store is a browser action ("Elegir mi tienda"); the cli reads the selection, it never changes it.
 
 ## 4. Cart
 
 Out of scope (ADR 0003).
 
-## 5. Region / store binding: pending capture
+## 5. Region / store binding
 
-Choosing a store ("Elegir mi tienda") sets the store for stock. The mechanism is probably a cookie or the context module, but it has not been seen yet.
+The selected store is what the product page reports as `data-main-store-id` / `data-main-store-name` and what the tracking data layer calls `cdl_user_context_main_store`. The captured session has neither, so this is still **unverified for a positive case**: the parser accepts the attributes when present, and `store current` reports the "no store" case with exit 4. The selection is not one of the cookies a `document.cookie` export can see, which is why a store-selected export (or a HAR) is the next capture needed.
 
 ## 6. Account auth
 
@@ -103,18 +152,13 @@ Not used. Sessions are guest browser sessions imported by the user (ADR 0001).
 
 ## 7. Capture still needed
 
-These are in Chrome DevTools, without logging in, with "Allow to generate HAR with sensitive data" on, then "Export HAR (with sensitive data)":
+One flow remains open: a session with a store already chosen, to verify pickup stock and `store current` on a positive page.
 
-1. Choose a store.
-2. Search "cemento cola".
-3. Run the same search with a brand filter and a price sort.
-4. Open page 2.
-5. Open a category page.
-6. Open two product pages, one in stock at the store and one not.
-7. Open any panel that shows stock in other stores.
-8. Switch to another store and reload one product.
+1. In Chrome, open leroymerlin.es, choose a store with "Elegir mi tienda", and reload one product page.
+2. Export the cookies **including HttpOnly cookies** (DevTools > Application > Cookies > Copy, or a HAR with sensitive data). A `document.cookie` export cannot see the store selection.
+3. Then capture a product page that is in stock at that store and one that is not, plus the home page.
 
-Then repeat the flow once with different inputs. Fixtures cut from the HAR are sanitized: cookies, `Set-Cookie` headers and context ids are removed before they land in `testdata/`.
+Fixtures cut from it are sanitized the same way: cookies, `Set-Cookie` headers, ktx tokens and context ids are removed before they land in `testdata/`.
 
 ## 8. robots.txt (V53, read 2026-10-19)
 

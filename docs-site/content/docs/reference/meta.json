@@ -9,9 +9,13 @@
     "doctor",
     "login",
     "mcp",
+    "product",
     "profile",
+    "search",
+    "sink",
     "skills",
     "store",
-    "update"
+    "update",
+    "watch"
   ]
 }

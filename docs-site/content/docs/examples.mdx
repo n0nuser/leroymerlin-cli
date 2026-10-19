@@ -31,6 +31,29 @@ leroymerlin category list --query cemento
 
 Accents are ignored in `--query`, so `almeria` finds `Almería`.
 
+## find a material
+
+```bash
+leroymerlin search "cemento cola" --format pretty
+leroymerlin search "mortero" --brand SIKA --max-price 30 --sort price-asc
+leroymerlin search --category construccion/cementos-morteros-y-yesos/cementos --in-stock
+```
+
+The site renders the first eighteen results and lazy-loads the rest card by card.
+`search` reports the total and the pages the site states, and the products the
+page embedded. `--limit` trims the page you asked for.
+
+## check one product
+
+```bash
+leroymerlin product show 81866477 --format pretty
+leroymerlin product stock 81866477
+```
+
+`product stock` says which store the session has selected, whether the product is
+online, and the delivery options the page lists. Without a selected store it
+reports online availability only; see [the session notes](/docs/reference/login).
+
 ## import a browser session
 
 Choose a store on leroymerlin.es first, then export the cookies. Stock follows the

@@ -45,5 +45,11 @@ One named session, and therefore one selected store. Use one profile per store t
 The bot protection's answer in place of the page asked for (exit 5). The fix is always on the user's side: refresh the browser session and re-import it.
 _Avoid_: ban, captcha (the cli never sees or solves one)
 
-**Watch** (planned):
-A saved search or product whose price and stock changes are reported as **Events** to stdout and **Sinks**.
+**Watch**:
+A saved search or product whose price and stock changes are reported as **Events**.
+
+**Event**:
+One change a `watch check` reports: `product.new`, `product.price_changed`, `product.in_stock`, `product.out_of_stock`, `product.stock_changed` or `product.removed`.
+
+**Sink**:
+A destination in `config.toml` (`ntfy`, `webhook` or `exec`) that receives a copy of a watch's events.

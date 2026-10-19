@@ -26,8 +26,12 @@ Shipped:
 auth       login | status | logout
 login      (same as auth login)
 profile    list | use | remove
-store      list
+search     [keywords...] (filters, sort, pages)
+product    show REF | stock REF        (alias: item)
+store      list | current
 category   list
+watch      add (search|product) | list | remove | check | run | events
+sink       list | test
 config     path | list | get | set
 doctor
 mcp        (serve) | install claude-code|codex|cursor
@@ -36,22 +40,11 @@ update
 completion bash|zsh|fish|powershell
 ```
 
-Planned. These are blocked on captured pages (see §12):
-
-```
-search     [keywords...] [--category PATH] [--brand B]... [--min-price N] [--max-price N]
-           [--sort relevance|price_asc|price_desc|...] [--in-stock] [--limit N] [--page N]
-item       show REF | stock REF        (REF: product URL or reference number)
-store      current                     (the store selected in the session)
-watch      add (search|item) | list | remove | check | run | events
-sink       list | test
-```
-
 ### auth
 
 - **`auth login [--cookies FILE | --har FILE | --cookies-stdin] [--cookies-format auto|json|netscape|header|har] [--user-agent UA] [--no-check]`**
   - **Input.** Imports a browser export. With no flag and a terminal, it prompts for a path; without a terminal, that is exit 2.
-  - **Formats.** Cookie JSON (array or `{"url","cookies"}` wrapper), DevTools cookie lists, Netscape `cookies.txt`, a `Cookie:` header, and HAR 1.2. A HAR is replayed in time order: request cookies, then the response's `Set-Cookie`. It also gives the browser's user agent.
+  - **Formats.** Cookie JSON (a plain array, the `{"url","cookies"}` wrapper, or the `{"userAgent","cookies"}` wrapper a `document.cookie` script writes), DevTools cookie lists, Netscape `cookies.txt`, a `Cookie:` header, and HAR 1.2. A HAR is replayed in time order: request cookies, then the response's `Set-Cookie`. A HAR and the `userAgent` wrapper also give the browser's user agent, so the cookies and the handshake match the browser that earned them.
   - **Filtering.** Only cookies for `leroymerlin.es` and its subdomains are kept.
   - **Storage.** The session is saved 0600, atomically.
   - **Check.** Unless `--no-check`, one request to `/` reports `session_valid`. A challenge there does not undo the import.
@@ -71,6 +64,42 @@ sink       list | test
 - **`category list [--parent PATH] [--depth N] [--query Q]`** reads `/sitemap-category1.xml`. Output: `[{path,name,depth,parent,url}]`, sorted by path. `PATH` is the URL after `/productos/`. An unknown `--parent` is exit 4.
 - **Query matching:** case-insensitive, with Spanish accents folded.
 
+### search
+
+- **`search [keywords...] [--category PATH] [--brand B]... [--min-price N] [--max-price N] [--in-stock] [--sold-by-leroy-merlin] [--sort relevance|price-asc|price-desc] [--page N] [--limit N]`**
+  - **Target.** Keywords search `/search?q=`; `--category` browses `/productos/<path>/` instead. Giving both is a usage error, because the site has no category filter on a text search.
+  - **Filters.** `--brand` maps to the site's Marca facet, `--min-price`/`--max-price` to its price range, `--sold-by-leroy-merlin` to its "Vendido por Leroy Merlin" toggle.
+  - **Availability.** `--in-stock` is applied by the cli to the products the page embeds: the site has no stock facet on a search without a selected store.
+  - **Output.** `{query,category,page,pages,total,sort,sorts,filters,products:[{ref,name,brand,url,price,price_without_tax,rating,seller,seller_type,available,sponsored,position}],shown}`.
+  - **Embedded slice.** Results are server-rendered, but the site lazy-loads the tail of every page card by card. The cli reads only what the page embedded (18 products in the 2026-10-19 captures) and reports `total` and `pages` as the site states them. It never fans out into per-card requests.
+
+### product
+
+- **`product show REF`** reads one product. `REF` is the 8-digit reference or a full product URL. A bare reference costs one request: the site redirects `/search?q=<ref>` to the product page, which is then parsed as the product.
+  - **Output.** `{ref,name,brand,url,description,gtin,image,price,price_without_tax,in_stock,available,rating,reviews,seller,seller_type,store,deliveries}`.
+- **`product stock REF`** narrows that to `{ref,name,store,online,deliveries}`.
+  - **`store`** is the store selected in the session, or `null` when there is none.
+  - **`deliveries`** is what the page states: `{type,stock,status,time,price}`. With the 2026-10-19 session that is home delivery only.
+- **`item`** is an alias for `product`.
+
+### watch / sink
+
+- **`watch add search [keywords...] [--name N] [--interval D] [--pages N] [--notify SINK]... [--emit-initial]`** saves a search with the same flags as `search`.
+- **`watch add product REF [--name N] [--interval D] [--notify SINK]... [--emit-initial]`** saves one product and its URL.
+  - A watch is baselined when it is created: the first check reports only changes. `--emit-initial` reports the current products as `product.new` instead.
+  - The interval defaults to `watch.interval` from config, then 5m; the floor is 30s.
+- **`watch list [--all-profiles]`**, **`watch remove NAME [--yes]`**.
+- **`watch check [NAME] [--all]`** fetches each watch once, prints its events and commits the new state. **`watch run [NAME] [--all]`** repeats until interrupted.
+- **`watch events [NAME] [--since 24h] [--limit N]`** reads stored events.
+- **Event types.** `product.new`, `product.price_changed` (`{from,to}`), `product.in_stock`, `product.out_of_stock`, `product.stock_changed` (`{from,to}`, when a store reports a count), `product.removed`.
+- **Event shape.** `{type,watch,profile,at,product:{ref,name,url,price,available,in_stock,store,stock},change}`.
+- **Sinks.** `--notify NAME` copies each event to `[sinks.NAME]` in config.toml, type `ntfy`, `webhook` or `exec`. A failing sink is reported on stderr and never undoes the check. An `exec` sink receives one event as JSON on stdin.
+- **`sink list`**, **`sink test NAME`**.
+
+### store current
+
+Prints the store selected in the session (`{id,name}`). Without one it exits 4 and explains how to choose a store. Stock always follows that store.
+
 ### doctor
 
 `doctor` runs five checks: config, session, datadome cookie, sitemaps, then one request to `/` with the session.
@@ -84,7 +113,7 @@ sink       list | test
 
 - **Methods:** `initialize`, `ping`, `tools/list`, `tools/call`.
 - **Protocol revisions:** 2024-11-05, 2025-03-26 and 2025-06-18.
-- **Tools:** `store_list`, `category_list`, `doctor`.
+- **Tools:** `store_list`, `category_list`, `store_current`, `search`, `product_show`, `product_stock`, `doctor`.
 - **How a tool runs.** Each tool runs its CLI argv in-process with `--no-input --error-format json`, so the output is what the command prints. A failed command comes back as `isError: true` with the error envelope.
 - **Errors.** Unknown tools or arguments, and wrongly typed arguments, return JSON-RPC `-32602`.
 - **Install.** `mcp install` writes `~/.claude.json`, `~/.cursor/mcp.json` (both JSON, other keys kept) or `~/.codex/config.toml` (edited as text, comments kept). It is idempotent and reports `added`, `updated` or `unchanged`.
@@ -155,11 +184,11 @@ Checks the latest stable GitHub release, verifies the archive's SHA-256 against 
 |---|---|---|
 | config | `$XDG_CONFIG_HOME/leroymerlin-cli/config.toml` (`LEROYMERLIN_CONFIG` overrides) | 0644 |
 | sessions | `$XDG_CONFIG_HOME/leroymerlin-cli/sessions/<profile>.json` | 0600, dir 0700, atomic |
-| state (watch) | `$XDG_DATA_HOME/leroymerlin-cli/state.db` | planned |
+| state (watch) | `$XDG_DATA_HOME/leroymerlin-cli/state.db` | 0600 file, dir 0700, sqlite WAL |
 | update stamp | `$XDG_STATE_HOME/leroymerlin-cli/update-check` | 0600 |
 | rate-gate stamp | `$XDG_STATE_HOME/leroymerlin-cli/last-request` | 0600 |
 
-`config.toml` keys: `default_profile`. Unknown keys are errors.
+`config.toml` keys: `default_profile`, `watch.interval`, and one `[sinks.NAME]` table per sink (`type`, plus `url`/`topic`/`token_file` or `command`). Unknown keys are errors.
 
 Env: `LEROYMERLIN_PROFILE`, `LEROYMERLIN_CONFIG`, `LEROYMERLIN_COOKIEJAR`, `LEROYMERLIN_ERROR_FORMAT`, `LEROYMERLIN_BASE_URL`, `LEROYMERLIN_NO_UPDATE_CHECK`, `NO_COLOR`. Precedence: flags > env > config.
 
@@ -171,8 +200,8 @@ Env: `LEROYMERLIN_PROFILE`, `LEROYMERLIN_CONFIG`, `LEROYMERLIN_COOKIEJAR`, `LERO
 
 ## 12. Open items
 
-- **Search, product, stock and watch** need captured pages: search with filters, page 2, a category page, two product pages, any per-store stock panel, and a store switch. Planned shapes are in §4. The stock source is still unknown: it may be embedded in the product HTML, or it may come from the `productpageservicesfunctionality` fragment that robots.txt disallows.
-- **`store current`** needs to know which cookie or context call holds the selected store.
+- **Per-store pickup stock** is the one unverified feature. The 2026-10-19 session carried no store selection (`data-main-store-id=""`, `cdl_user_context_main_store:"no cookie here"`), so the product page reports online availability and home delivery only. A session exported after choosing a store (with HttpOnly cookies, so a HAR or DevTools copy rather than `document.cookie`) is needed to confirm that pickup rows appear in `available_deliveries`; the parser already reads any delivery type. The `productpageservicesfunctionality` fragment stays untouched: robots.txt disallows it.
+- **The lazy tail of a result page.** The site embeds about 18 products and lazy-loads the rest card by card. `search` reports the embedded slice and the site's total; chasing the tail would be dozens of requests per page.
 - **HTTP/2** if JA4's ALPN value turns out to matter (ADR 0002).
 
 ## 13. Layout
@@ -181,9 +210,12 @@ Env: `LEROYMERLIN_PROFILE`, `LEROYMERLIN_CONFIG`, `LEROYMERLIN_COOKIEJAR`, `LERO
 cmd/leroymerlin/       entrypoint
 cmd/docsgen/           renders docs-site/content/docs/reference from the command tree
 internal/cli/          one file per noun; skills/ holds embedded agent docs
-internal/leroymerlin/  client: transport, session, sitemaps, (planned) page parsers; testdata/
+internal/leroymerlin/  client: transport, session, sitemaps, page parsers; testdata/
 internal/config/       paths, config.toml, session files
 internal/output/       json/jsonl/pretty, error envelope, exit codes
+internal/store/        sqlite state: watches, seen products, events
+internal/watch/        diff logic between two checks
+internal/sink/         ntfy, webhook and exec delivery
 internal/mcp/          stdio server, tool table, harness install
 internal/updater/      release check, checksum, replace
 docs/                  this spec, ADRs, API discovery, research

@@ -24,7 +24,8 @@ buying materials means asking one question many times: does my store have this, 
 |---|---|
 | `store list`, `category list` | work now, from the public sitemaps, no session needed |
 | `auth login` (cookies or HAR), `doctor`, `profile`, `config`, `mcp`, `update` | work now |
-| `search`, `item`, per-store stock, `watch` | being built from captured pages; not in the binary yet |
+| `search`, `product show`, `product stock`, `watch`, `sink` | work now, with your browser session |
+| per-store pickup stock | needs a session exported after choosing a store; until then stock shows online availability and home delivery |
 
 ## quickstart
 
@@ -99,6 +100,8 @@ leroymerlin auth login --har getafe.har --profile getafe
 leroymerlin profile use madrid
 ```
 
+if `product stock` or `store current` says the session has no store, the export lost the selection. `document.cookie` cannot read HttpOnly cookies: choose a store again and export with devtools → application → cookies (or a HAR). until then, stock reports online availability and home delivery only.
+
 ## updates
 
 ```bash
@@ -112,9 +115,13 @@ interactive commands check for a new stable release at most once a day and ask b
 
 | command | what it does |
 |---|---|
+| `search` | search the catalogue, or browse a category, with the site's filters and sort |
+| `product show / stock` | one product, its price and where it is available (`item` works too) |
+| `watch add / list / check / events` | saved searches and products, reported as change events |
+| `sink list / test` | copy watch events to ntfy, a webhook or a script |
 | `auth login / status / logout` | import, inspect or forget the browser session (`login` is a shortcut) |
 | `profile list / use / remove` | one session per store, side by side |
-| `store list` | every store, from the public sitemap |
+| `store list / current` | every store from the public sitemap, and the one the session selected |
 | `category list` | the category tree, from the public sitemap |
 | `doctor` | config, session, sitemaps, and whether the storefront accepts the session |
 | `config path / list / get / set` | config.toml |
@@ -132,6 +139,12 @@ leroymerlin store list --compact --format pretty
 leroymerlin store list --format jsonl | jq -r .slug
 leroymerlin category list --parent construccion --depth 1 --format pretty
 leroymerlin category list --query cemento
+leroymerlin search "cemento cola" --format pretty
+leroymerlin search "mortero" --brand SIKA --max-price 30 --sort price-asc
+leroymerlin search --category construccion/cementos-morteros-y-yesos/cementos --in-stock
+leroymerlin product stock 81866477 --format pretty
+leroymerlin watch add search "cemento cola" --max-price 20 --name cola
+leroymerlin watch check --all --format jsonl | jq -r 'select(.type=="product.price_changed") | .product.url'
 leroymerlin doctor --error-format json
 leroymerlin mcp install claude-code
 ```
