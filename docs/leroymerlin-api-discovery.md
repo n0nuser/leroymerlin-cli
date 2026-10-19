@@ -22,6 +22,7 @@ curl -sS -o /dev/null -w '%{http_code}\n' -A 'Mozilla/5.0 … Chrome/141.0.0.0 S
 
 - **Bot protection.** DataDome answers unknown clients with a 403 whose body loads `ct.captcha-delivery.com/c.js`. It sets a `datadome` cookie (`Max-Age=31536000; Domain=.leroymerlin.es`) and rotates it on most responses.
 - **What the cli sends.** The user's browser session (ADR 0001) over a Chrome TLS hello (ADR 0002).
+- **The user agent is part of the session.** An export that does not carry one falls back to the default Chrome 133. Replaying a Chrome 155 session with that default was challenged; `auth login --user-agent '<the browser's UA>'` made the same cookies work. Keep the pair together, as a HAR or the `{"userAgent","cookies"}` wrapper does.
 - **Block detection.** `IsBlockPage` treats a response as a challenge when it carries DataDome's headers and is a 403 or 429, or when the body contains `captcha-delivery.com`. An origin 403 without those markers is not a challenge.
 - **Accounts.** Not needed. A guest session with a store chosen is enough.
 
@@ -114,25 +115,30 @@ Product pages are `/productos/<slug>-<ref>.html`. Two blocks matter:
 - **`jsonld_PRODUCT`** (schema.org): `name`, `sku`, `gtin`, `description`, `image`, `offers {price, priceCurrency, availability, url}`, `aggregateRating {ratingValue, reviewCount}`.
 - **`cdl_products` dataTms islands**: the same product plus `offer.add_to_cart_availability`, `unitprice_ati` / `unitprice_tf`, seller, and `offer.available_deliveries [{price, stock, stockStatus, time, type}]`.
 
-In the captures `available_deliveries` has one entry, `type: homeDelivery`, `stockStatus: ONSITE`, with an online stock number and a delivery price. There is no pickup entry because the session has no store selected.
+In the capture **without** a selected store `available_deliveries` has one entry, `type: homeDelivery`. With store 037 (Salamanca) selected it has two:
 
-The page also states the selected store:
+```json
+[
+  {"price": 0.0, "stock": 308, "stockStatus": "ONORDER", "time": "2 OPENING_DAY", "type": "storeDelivery"},
+  {"price": 19.9, "stock": 308, "stockStatus": "ONSITE",  "time": "5 OPENING_DAY", "type": "homeDelivery"}
+]
+```
+
+`storeDelivery` is pickup at the selected store: price 0 means free, `stockStatus` is `ONSITE` (on the shelf), `ONORDER` (order to the store) or `OUTOFSTOCK`, and `time` is the estimate. The stock number is what the offer states; the status is what tells shelf from order. The cli reports both and watches changes in either.
+
+The page states the selected store directly:
 
 ```html
-<div ... data-main-store-id="" ...>
+<div ... data-main-store-id="037" data-main-store-name="Salamanca" ...>
 ```
 
-and the tracking layer says `cdl_user_context_main_store: "no cookie here"`. The home page header shows "¿Dónde estás? / Selecciona una tienda". The captured session had no store, and its cookies carry no store selection (`cctx` is only a context UUID). So the cli can read online availability and delivery, but **per-store pickup stock is not verified yet**: it needs a session exported after choosing a store.
+The home page states it as `data-store-id="037"` plus `data-main-store-name="Salamanca"` on the context header, which is what `store current` reads. The session cookies carry `store_id`, `lmes_store_id` and `store` next to the context and bot-protection cookies.
 
-The per-store stock dialog is fed by a lazy `MeshingService` fragment whose URL is signed per request:
+`cdl_user_context_main_store` is the tracking layer's copy; it is `"no cookie here"` only when no store is selected.
 
-```
-/lazy/com.adeo.website.productpageservicesfunctionality.MeshingService?ktx=<token>
-```
+Per-store stock therefore needs no disallowed endpoint: the pickup row is in the product HTML. The lazy `MeshingService` fragment (`/lazy/com.adeo.website.productpageservicesfunctionality.MeshingService?ktx=<token>`, robots-disallowed) is still never requested, and the cli has no parser for it.
 
-robots.txt disallows `*/productpageservicesfunctionality/*`. The cli does not request it and does not build a parser for it. If a store-selected session turns out to render pickup rows into `available_deliveries`, the existing product parser will read them without touching the disallowed service.
-
-Captures used: `product_81866477.html` (in stock online, 308 home delivery) and `product_81944344.html` (not available, no delivery rows). Both real, stripped.
+Captures used: `product_81866477.html` (no store, home delivery only), `product_81866477_store.html` (store 037, pickup + home delivery), `product_81944344.html` (not available, no delivery rows), `home_nostore.html` and `home_salamanca.html` for the context. All real, stripped.
 
 ### 3.6 Cart, account, store selection
 
@@ -144,7 +150,13 @@ Out of scope (ADR 0003).
 
 ## 5. Region / store binding
 
-The selected store is what the product page reports as `data-main-store-id` / `data-main-store-name` and what the tracking data layer calls `cdl_user_context_main_store`. The captured session has neither, so this is still **unverified for a positive case**: the parser accepts the attributes when present, and `store current` reports the "no store" case with exit 4. The selection is not one of the cookies a `document.cookie` export can see, which is why a store-selected export (or a HAR) is the next capture needed.
+Verified with a session that had store 037 (Salamanca, postcode 37001) selected:
+
+- the home page renders `data-store-id="037"` and `data-main-store-name="Salamanca"` on the context header;
+- a product page renders `data-main-store-id="037"` and `data-main-store-name="Salamanca"` and adds a `storeDelivery` row to `available_deliveries`;
+- the cookies include `store_id`, `lmes_store_id` and `store`.
+
+`store current` reads the home page attributes; `product stock` reads the product page. Both report the same store. Comparing stores still means one profile per store, because the selection is part of the session.
 
 ## 6. Account auth
 
@@ -152,13 +164,12 @@ Not used. Sessions are guest browser sessions imported by the user (ADR 0001).
 
 ## 7. Capture still needed
 
-One flow remains open: a session with a store already chosen, to verify pickup stock and `store current` on a positive page.
+Nothing blocks the read surface. Two optional captures would close the last small gaps:
 
-1. In Chrome, open leroymerlin.es, choose a store with "Elegir mi tienda", and reload one product page.
-2. Export the cookies **including HttpOnly cookies** (DevTools > Application > Cookies > Copy, or a HAR with sensitive data). A `document.cookie` export cannot see the store selection.
-3. Then capture a product page that is in stock at that store and one that is not, plus the home page.
+1. A product that the selected store has **on the shelf** (`stockStatus: ONSITE` on a `storeDelivery` row), to confirm the human rendering beside the `ONORDER` row in the current fixture.
+2. A product that the store cannot serve, for the `OUTOFSTOCK` branch.
 
-Fixtures cut from it are sanitized the same way: cookies, `Set-Cookie` headers, ktx tokens and context ids are removed before they land in `testdata/`.
+Sanitize them the same way: cookies, `Set-Cookie` headers, ktx tokens and context ids removed before they land in `testdata/`.
 
 ## 8. robots.txt (V53, read 2026-10-19)
 

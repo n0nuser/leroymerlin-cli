@@ -79,7 +79,7 @@ completion bash|zsh|fish|powershell
   - **Output.** `{ref,name,brand,url,description,gtin,image,price,price_without_tax,in_stock,available,rating,reviews,seller,seller_type,store,deliveries}`.
 - **`product stock REF`** narrows that to `{ref,name,store,online,deliveries}`.
   - **`store`** is the store selected in the session, or `null` when there is none.
-  - **`deliveries`** is what the page states: `{type,stock,status,time,price}`. With the 2026-10-19 session that is home delivery only.
+  - **`deliveries`** is what the page states: `{type,stock,status,time,price}`. With a store selected the rows are `storeDelivery` (pickup at that store, free) and `homeDelivery`; `status` is `ONSITE`, `ONORDER` or `OUTOFSTOCK`, and a price of 0 means free.
 - **`item`** is an alias for `product`.
 
 ### watch / sink
@@ -91,7 +91,7 @@ completion bash|zsh|fish|powershell
 - **`watch list [--all-profiles]`**, **`watch remove NAME [--yes]`**.
 - **`watch check [NAME] [--all]`** fetches each watch once, prints its events and commits the new state. **`watch run [NAME] [--all]`** repeats until interrupted.
 - **`watch events [NAME] [--since 24h] [--limit N]`** reads stored events.
-- **Event types.** `product.new`, `product.price_changed` (`{from,to}`), `product.in_stock`, `product.out_of_stock`, `product.stock_changed` (`{from,to}`, when a store reports a count), `product.removed`.
+- **Event types.** `product.new`, `product.price_changed` (`{from,to}`), `product.in_stock`, `product.out_of_stock`, `product.stock_changed` (`{from,to,from_status,to_status}`, when a store reports a count or status), `product.removed`.
 - **Event shape.** `{type,watch,profile,at,product:{ref,name,url,price,available,in_stock,store,stock},change}`.
 - **Sinks.** `--notify NAME` copies each event to `[sinks.NAME]` in config.toml, type `ntfy`, `webhook` or `exec`. A failing sink is reported on stderr and never undoes the check. An `exec` sink receives one event as JSON on stdin.
 - **`sink list`**, **`sink test NAME`**.
@@ -173,6 +173,7 @@ Checks the latest stable GitHub release, verifies the archive's SHA-256 against 
 - **Base URL:** `https://www.leroymerlin.es`. `LEROYMERLIN_BASE_URL` overrides it, for tests.
 - **TLS:** a Chrome hello via utls with ALPN `http/1.1` (ADR 0002).
 - **Headers:** browser navigation headers; `Accept-Language: es-ES`; the session's user agent, or a Chrome 133 default. The `Sec-CH-UA`, `-Mobile` and `-Platform` client hints come from the HAR, or match the default user agent. With a custom `--user-agent` and no HAR, no hints are sent.
+- **User agent:** cookies and the user agent are scored together. A cookie export with no user agent is replayed as the default Chrome 133 and may be challenged even when the cookies are fresh; `--user-agent` with the browser's string fixes it. Prefer an export that carries it.
 - **No proxy.** The storefront transport ignores `HTTPS_PROXY`/`HTTP_PROXY`, because a proxied connection would use Go's TLS hello instead of Chrome's.
 - **Rate:** one request at a time, at least 1.5 s apart plus up to 30% jitter. This holds across invocations too: the time of the last request is kept in `$XDG_STATE_HOME/leroymerlin-cli/last-request`. Two processes started at the same instant can still race.
 - **Redirects** are followed within leroymerlin.es only, five at most. The session is never sent to another host.
@@ -200,7 +201,7 @@ Env: `LEROYMERLIN_PROFILE`, `LEROYMERLIN_CONFIG`, `LEROYMERLIN_COOKIEJAR`, `LERO
 
 ## 12. Open items
 
-- **Per-store pickup stock** is the one unverified feature. The 2026-10-19 session carried no store selection (`data-main-store-id=""`, `cdl_user_context_main_store:"no cookie here"`), so the product page reports online availability and home delivery only. A session exported after choosing a store (with HttpOnly cookies, so a HAR or DevTools copy rather than `document.cookie`) is needed to confirm that pickup rows appear in `available_deliveries`; the parser already reads any delivery type. The `productpageservicesfunctionality` fragment stays untouched: robots.txt disallows it.
+- **Pickup status branches.** Store 037 (Salamanca) is verified for `storeDelivery` with `ONORDER` and home delivery with `ONSITE`. A capture of pickup `ONSITE` and pickup `OUTOFSTOCK` would pin the remaining human labels; the parser already carries the raw status.
 - **The lazy tail of a result page.** The site embeds about 18 products and lazy-loads the rest card by card. `search` reports the embedded slice and the site's total; chasing the tail would be dozens of requests per page.
 - **HTTP/2** if JA4's ALPN value turns out to matter (ADR 0002).
 

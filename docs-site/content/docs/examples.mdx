@@ -51,8 +51,10 @@ leroymerlin product stock 81866477
 ```
 
 `product stock` says which store the session has selected, whether the product is
-online, and the delivery options the page lists. Without a selected store it
-reports online availability only; see [the session notes](/docs/reference/login).
+online, and the delivery options the page lists. With a selected store it adds a
+pickup row per store (`on order`, `in stock` or `out of stock`, free when the price
+is 0). Without one it reports online availability only; see
+[the session notes](/docs/reference/login).
 
 ## import a browser session
 

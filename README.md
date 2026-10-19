@@ -25,7 +25,7 @@ buying materials means asking one question many times: does my store have this, 
 | `store list`, `category list` | work now, from the public sitemaps, no session needed |
 | `auth login` (cookies or HAR), `doctor`, `profile`, `config`, `mcp`, `update` | work now |
 | `search`, `product show`, `product stock`, `watch`, `sink` | work now, with your browser session |
-| per-store pickup stock | needs a session exported after choosing a store; until then stock shows online availability and home delivery |
+| per-store pickup stock | works when the session has a store selected; otherwise stock shows online availability and home delivery |
 
 ## quickstart
 
@@ -100,7 +100,7 @@ leroymerlin auth login --har getafe.har --profile getafe
 leroymerlin profile use madrid
 ```
 
-if `product stock` or `store current` says the session has no store, the export lost the selection. `document.cookie` cannot read HttpOnly cookies: choose a store again and export with devtools → application → cookies (or a HAR). until then, stock reports online availability and home delivery only.
+if `product stock` or `store current` says the session has no store, the export was taken before choosing one. open leroymerlin.es, pick a store ("Elegir mi tienda"), and export again; `store current` shows the one it found. keep the browser's user agent with the cookies: an export without it is replayed as the default chrome and may be challenged, so pass `--user-agent` when needed.
 
 ## updates
 

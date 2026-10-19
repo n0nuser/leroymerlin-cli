@@ -4,28 +4,30 @@ Date: 2026-10-19. Branch: `feat/initial`.
 
 ## Summary
 
-The cli now covers the read-only surface the project exists for: stores, categories, search with the site's own filters, one product and its availability, and watches that report price and stock changes as events, with optional sinks.
+The cli now covers the read-only surface the project exists for: stores, categories, search with the site's own filters, one product and its availability, per-store pickup stock, and watches that report price and stock changes as events, with optional sinks. The previous "no store selected" caveat is closed.
 
 What landed in this round:
 
 - **Docs site merged.** `docs-site/` now carries the app shell, guides and theme from `feat/docs-site`, and `cmd/docsgen` owns `docs-site/content/docs/reference`. `npm install && npm run build` succeeds. Planned-command placeholders were dropped because the generator deletes anything it does not write.
 - **Session import.** `auth login --cookies` accepts the `{"userAgent","cookies"}` wrapper a `document.cookie` script writes, keeps the browser's user agent, and therefore replays the cookies with the Chrome that earned them. The plain array and Cookie-Editor wrapper still work.
-- **Live access.** The supplied session passed `doctor` on the first try: config, session, datadome cookie, sitemaps and one storefront request. No challenge, so no transport work was needed.
-- **Captured fixtures.** Seven real responses were captured through the cli transport, one request at a time, and sanitized (cookies, `ktx` tokens and context ids removed):
+- **Live access.** Two sessions were imported. The first had no store selected and passed `doctor` immediately. The second (store 037, Salamanca) was a plain cookie array with no user agent: replayed as the default Chrome 133 it was challenged, and `--user-agent` with the browser's Chrome 155 string made the same cookies work. `store current` then resolved `037 / Salamanca`.
+- **Captured fixtures.** Nine real responses were captured through the cli transport, one request at a time, and sanitized (cookies, `ktx` tokens and context ids removed):
   - `search_cemento_cola.html` (relevance, page 1)
   - `search_cemento_cola_filtered.html` (price 5–20, price-asc)
   - `search_cemento_cola_page2.html`
   - `category_cementos.html` (leaf category)
-  - `product_81866477.html` (available, home delivery)
+  - `product_81866477.html` (available, home delivery only)
+  - `product_81866477_store.html` (store 037 selected: pickup + home delivery)
   - `product_81944344.html` (not available)
   - `home_nostore.html` (a session with no store selected)
+  - `home_salamanca.html` (store 037 selected)
 - **Search.** `/search?q=` and `/productos/<path>/` are parsed from the `guidance-ssr-data` island and the `cdl_products_list` islands. Exposed filters: `--brand` (the site's Marca facet), `--min-price` / `--max-price` (its range), `--sold-by-leroy-merlin` (its vendor toggle), `--sort relevance|price-asc|price-desc`, `--page`, `--category`, `--in-stock` (applied to the embedded slice), `--limit`.
-- **Product and stock.** `product show REF` reads `jsonld_PRODUCT` plus the offer island; `product stock REF` narrows to store, online availability and deliveries. `item` is an alias. A bare reference costs one request because the site redirects `/search?q=<ref>` to the product page.
-- **Store.** `store current` reports the selected store or exits 4 with the fix.
-- **Watch.** `watch add search|product`, `list`, `remove`, `check`, `run`, `events`. State lives in a local sqlite database (`internal/store`), the diff lives in `internal/watch`, and a check commits state + events in one transaction. Event types: `product.new`, `product.price_changed`, `product.in_stock`, `product.out_of_stock`, `product.stock_changed`, `product.removed`.
+- **Product and stock.** `product show REF` reads `jsonld_PRODUCT` plus the offer island; `product stock REF` narrows to store, online availability and deliveries. With a store selected the page adds a `storeDelivery` pickup row (`status` `ONSITE`/`ONORDER`/`OUTOFSTOCK`, price 0 = free) beside home delivery. `item` is an alias. A bare reference costs one request because the site redirects `/search?q=<ref>` to the product page.
+- **Store.** `store current` reports the selected store (`037 / Salamanca` live) or exits 4 when the session has none; the home header's `data-store-id` fallback was needed for the id.
+- **Watch.** `watch add search|product`, `list`, `remove`, `check`, `run`, `events`. State lives in a local sqlite database (`internal/store`), the diff lives in `internal/watch`, and a check commits state + events in one transaction. Event types: `product.new`, `product.price_changed`, `product.in_stock`, `product.out_of_stock`, `product.stock_changed` (count or status), `product.removed`.
 - **Sinks.** `sink list|test`, with `ntfy`, `webhook` and `exec` from `[sinks.NAME]` in `config.toml`, delivered best effort.
 - **MCP.** `search`, `product_show`, `product_stock` and `store_current` join `store_list`, `category_list` and `doctor`.
-- **Docs.** `docs/cli-spec.md`, `docs/leroymerlin-api-discovery.md`, `README.md`, `AGENTS.md`, the agent skill and a new ADR 0004 describe all of it. The command reference is regenerated; `make docs-check` is clean.
+- **Docs.** `docs/cli-spec.md`, `docs/leroymerlin-api-discovery.md`, `docs/review.md`, `README.md`, `AGENTS.md`, the agent skill and a new ADR 0004 describe all of it. The command reference is regenerated; `make docs-check` is clean.
 
 ## Verification
 
@@ -33,16 +35,16 @@ What landed in this round:
 - `make check` (vet, staticcheck, tests, gofmt): clean.
 - `make docs-check`: clean.
 - `cd docs-site && npm install && npm run build`: the static export succeeds and includes the new `search`, `product`, `watch` and `sink` reference pages.
-- 69 test functions, 72 runs including subtests. Parser tests are pinned to the real captures; `watch`/`store` have diff and transaction tests; the CLI tests use `httptest` and never talk to leroymerlin.es.
-- Live smoke test: `search "cemento cola"`, a filtered/sorted search, page 2, a category, two products, `product stock`, a watch add/check/remove. All at the normal 1.5 s pace.
+- 72 test functions, 75 runs including subtests. Parser tests are pinned to the real captures, including the store-selected product and home pages; `watch`/`store` have diff and transaction tests; the CLI tests use `httptest` and never talk to leroymerlin.es.
+- Live smoke test: `search "cemento cola"`, a filtered/sorted search, page 2, a category, two products, `store current` (`037 / Salamanca`), `product stock` with pickup rows, and a product watch add/check/remove. All at the normal 1.5 s pace.
 
 ## Open caveats
 
-1. **Per-store pickup stock is unverified.** The supplied session has no store selected: the home page says "¿Dónde estás? / Selecciona una tienda", the product page renders `data-main-store-id=""`, the tracking layer says `cdl_user_context_main_store: "no cookie here"`, and none of the cookies carries a store (`cctx` is only a context UUID). The product page therefore reports online availability and home delivery only. `product stock` shows `"store": null` and says so, and `store current` exits 4. To finish this feature, export the session **with HttpOnly cookies** (DevTools → Application → Cookies, or a HAR) after choosing a store; a `document.cookie` export cannot see the selection. The parser already reads any delivery type, so pickup rows should appear without new code. The disallowed `MeshingService` fragment was not requested.
-2. **The result page embeds about 18 products.** The site lazy-loads the rest one card at a time. `search` reports the site's `total` and `pages` and the products the page embedded; it does not fan out into per-card requests. `shown` says how many are in the output after `--in-stock`/`--limit`.
-3. **Promoted placements** mean a `price-asc` page is not strictly ascending (one pinned product at position 11 in the capture). The sort is the site's, not re-sorted locally.
-4. **`store current` has only been exercised on the "no store" page.** The positive markup is inferred from `data-main-store-id` / `data-main-store-name`; the same HttpOnly export would confirm it.
-5. **`search --in-stock`** filters the embedded slice client-side because the site offers no stock facet on a search without a selected store. `--sold-by-leroy-merlin` uses the site's own toggle.
+1. **Pickup `ONORDER` is verified; `ONSITE` and `OUTOFSTOCK` are not captured.** Store 037's page states `storeDelivery` with `stockStatus ONORDER` (order to the store, 2 opening days) beside `homeDelivery ONSITE`. The parser carries the raw status and the renderer maps all three; only the two missing fixture states are unconfirmed.
+2. **The user agent must travel with the cookies.** A plain cookie array replayed as the default Chrome 133 was challenged; the browser's Chrome 155 string with the same cookies worked. An export that carries the user agent (HAR or the `{"userAgent","cookies"}` wrapper) avoids the extra flag.
+3. **The result page embeds about 18 products.** The site lazy-loads the rest one card at a time. `search` reports the site's `total` and `pages` and the products the page embedded; it does not fan out into per-card requests. `shown` says how many are in the output after `--in-stock`/`--limit`.
+4. **Promoted placements** mean a `price-asc` page is not strictly ascending (one pinned product at position 11 in the capture). The sort is the site's, not re-sorted locally.
+5. **`search --in-stock`** filters the embedded slice client-side because the site offers no stock facet on a search. `--sold-by-leroy-merlin` uses the site's own toggle.
 6. **Brand values** are passed as typed. The site's Marca facet lists brands in upper case (`SIKA`); lower-case input may not match. This matches what the site itself accepts.
 
 ## Literal output
@@ -139,12 +141,20 @@ urban-madrid    Urban Madrid    store
 2 stores
 ```
 
+### `leroymerlin store current --format pretty`
+
+```
+id    037
+name  Salamanca
+```
+
 ### `leroymerlin product stock 81866477 --format pretty`
 
 ```
 ref       81866477
 name      Cemento cola Pegoland blanco 25 kg
-store     none selected in this session: choose a store in your browser and import the cookies again
+store     Salamanca (037)
 online    true
-delivery  homeDelivery, 5 opening days, 308 available, 19.90 EUR
+delivery  store pickup, 2 opening days, on order, 308 available, free
+delivery  home delivery, 5 opening days, in stock, 308 available, 19.90 EUR
 ```

@@ -23,6 +23,7 @@ they do not follow you to another machine.
 - a price that moved: `product.price_changed`
 - stock that appeared or disappeared at the selected store: `product.in_stock`,
   `product.out_of_stock`
+- a store stock count or pickup status that moved: `product.stock_changed`
 - a product that left the result set: `product.removed`
 
 Each event is one JSON object on stdout:

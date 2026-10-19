@@ -31,7 +31,7 @@ Without a session only `store list`, `category list` and `doctor` work.
 
 `REF` is the 8-digit product reference or a product URL. `search` reads the products the page embeds (about 18) and reports the site's total; it does not chase the lazy tail, so keep loops to a few pages.
 
-Without a selected store the product page reports online availability and home delivery only. `store current` exits 4 in that case: the fix is a cookie export that includes HttpOnly cookies (devtools or a HAR), taken after choosing a store.
+Without a selected store the product page reports online availability and home delivery only. `store current` exits 4 in that case: ask the user to choose a store in their browser and export the session again. With a store selected, `product stock` also reports `storeDelivery` pickup rows with `status` `ONSITE`, `ONORDER` or `OUTOFSTOCK`; a price of 0 means free pickup.
 
 ## Exit codes
 
