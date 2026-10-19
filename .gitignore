@@ -3,3 +3,8 @@
 *.har
 *cookies*.json
 !internal/leroymerlin/testdata/*
+
+# docs-site
+docs-site/node_modules/
+docs-site/.next/
+docs-site/out/
