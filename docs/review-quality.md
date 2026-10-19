@@ -168,5 +168,5 @@ The harvest reads `LEROYMERLIN_CHROME_URL`, `LEROYMERLIN_CHROME` and `LEROYMERLI
 | rubric | high | medium | low | informational |
 |---|---:|---:|---:|---:|
 | thermo-nuclear | 2 | 4 | 1 | 1 |
-| standards | 1 | 3 | 3 | — |
+| standards | 1 | 3 | 2 | — |
 | spec | 2 | 2 | 3 | — |
