@@ -13,6 +13,7 @@ The read surface is complete for one person shopping: stores, categories, search
 - `product stock` for `81866477` (Cemento cola Pegoland 25 kg), both without and with a store selected.
 - `product show` and a `watch add product` / `check` / `events` / `remove` cycle with the store-selected session.
 - Parser behaviour against seven no-store captures and two new store captures.
+- `auth harvest` for the session: cookie mapping through `ParseExport`, host matching, Chrome resolution, DevTools reachability and the challenge check, all unit-tested without launching a browser.
 - The full suite, `make check`, `make docs-check` and the docs-site build.
 
 ## Findings
@@ -24,6 +25,7 @@ The read surface is complete for one person shopping: stores, categories, search
 5. **The result page embeds about 18 products; the tail is lazy.** Accepted: `search` reports the site's total and the embedded slice instead of making dozens of per-card requests.
 6. **Promoted placements break strict price order.** The site pins a product at position 11 on a `price-asc` page. Accepted: the sort is the site's, not re-sorted locally.
 7. **Pickup `ONSITE` and `OUTOFSTOCK` are not captured.** The parser carries the raw status and the renderer handles both; only the fixtures for those two states are missing.
+8. **`auth harvest` replaces the manual export for interactive users.** It is headed by design, so it needs a display (or a Chrome to attach to), and the browser step is integration-only: the unit tests cover the mapping and resolution, not a launch. `auth login` stays for scripts and CI. **Documented and tested where it can be.**
 
 ## Residual risks
 

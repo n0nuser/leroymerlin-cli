@@ -8,8 +8,9 @@ public storefront and prints JSON, so a store list, a category tree or a stock c
 can go straight into a script, a timer or an agent.
 
 leroymerlin.es sits behind bot protection. The cli does not try to log in by itself:
-it replays the session of the browser you already use. Stores and categories come from
-the public sitemaps and work before you import anything.
+`auth harvest` opens a real Chrome window and reads the session out of it, or
+`auth login` imports an export you already have. Stores and categories come from the
+public sitemaps and work before either.
 
 <Cards>
   <Card title="Install" href="/docs/install">
@@ -34,7 +35,7 @@ the public sitemaps and work before you import anything.
 ```bash
 leroymerlin store list --query madrid --format pretty
 leroymerlin category list --depth 1
-leroymerlin auth login --cookies ~/Downloads/leroymerlin-cookies.json
+leroymerlin auth harvest
 leroymerlin doctor
 ```
 

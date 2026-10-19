@@ -9,6 +9,7 @@ The cli now covers the read-only surface the project exists for: stores, categor
 What landed in this round:
 
 - **Docs site merged.** `docs-site/` now carries the app shell, guides and theme from `feat/docs-site`, and `cmd/docsgen` owns `docs-site/content/docs/reference`. `npm install && npm run build` succeeds. Planned-command placeholders were dropped because the generator deletes anything it does not write.
+- **Session harvest.** `auth harvest` opens a real Chrome window (headed), attaches to a running DevTools endpoint when one listens, waits for a DataDome challenge to clear, and reads the cookies and the browser's own user agent over CDP into the existing `ParseExport` + `SaveSession` path. It keeps a profile under `$XDG_DATA_HOME/leroymerlin-cli/chrome`, so a solved challenge survives. This supersedes manual `auth login --cookies` for most interactive users; `auth login` stays for scripts, CI and machines without a display (ADR 0005).
 - **Session import.** `auth login --cookies` accepts the `{"userAgent","cookies"}` wrapper a `document.cookie` script writes, keeps the browser's user agent, and therefore replays the cookies with the Chrome that earned them. The plain array and Cookie-Editor wrapper still work.
 - **Live access.** Two sessions were imported. The first had no store selected and passed `doctor` immediately. The second (store 037, Salamanca) was a plain cookie array with no user agent: replayed as the default Chrome 133 it was challenged, and `--user-agent` with the browser's Chrome 155 string made the same cookies work. `store current` then resolved `037 / Salamanca`.
 - **Captured fixtures.** Nine real responses were captured through the cli transport, one request at a time, and sanitized (cookies, `ktx` tokens and context ids removed):
@@ -35,17 +36,18 @@ What landed in this round:
 - `make check` (vet, staticcheck, tests, gofmt): clean.
 - `make docs-check`: clean.
 - `cd docs-site && npm install && npm run build`: the static export succeeds and includes the new `search`, `product`, `watch` and `sink` reference pages.
-- 72 test functions, 75 runs including subtests. Parser tests are pinned to the real captures, including the store-selected product and home pages; `watch`/`store` have diff and transaction tests; the CLI tests use `httptest` and never talk to leroymerlin.es.
+- 85 test functions, 88 runs including subtests. Parser tests are pinned to the real captures, including the store-selected product and home pages; `watch`/`store` have diff and transaction tests; `harvest` tests the cookie mapping, host matching, Chrome resolution and the challenge check without launching a browser; the CLI tests use `httptest` and never talk to leroymerlin.es.
 - Live smoke test: `search "cemento cola"`, a filtered/sorted search, page 2, a category, two products, `store current` (`037 / Salamanca`), `product stock` with pickup rows, and a product watch add/check/remove. All at the normal 1.5 s pace.
 
 ## Open caveats
 
 1. **Pickup `ONORDER` is verified; `ONSITE` and `OUTOFSTOCK` are not captured.** Store 037's page states `storeDelivery` with `stockStatus ONORDER` (order to the store, 2 opening days) beside `homeDelivery ONSITE`. The parser carries the raw status and the renderer maps all three; only the two missing fixture states are unconfirmed.
-2. **The user agent must travel with the cookies.** A plain cookie array replayed as the default Chrome 133 was challenged; the browser's Chrome 155 string with the same cookies worked. An export that carries the user agent (HAR or the `{"userAgent","cookies"}` wrapper) avoids the extra flag.
+2. **The user agent must travel with the cookies.** A plain cookie array replayed as the default Chrome 133 was challenged; the browser's Chrome 155 string with the same cookies worked. `auth harvest` always carries it; a manual export should be a HAR or the `{"userAgent","cookies"}` wrapper, or pass `--user-agent`.
 3. **The result page embeds about 18 products.** The site lazy-loads the rest one card at a time. `search` reports the site's `total` and `pages` and the products the page embedded; it does not fan out into per-card requests. `shown` says how many are in the output after `--in-stock`/`--limit`.
 4. **Promoted placements** mean a `price-asc` page is not strictly ascending (one pinned product at position 11 in the capture). The sort is the site's, not re-sorted locally.
 5. **`search --in-stock`** filters the embedded slice client-side because the site offers no stock facet on a search. `--sold-by-leroy-merlin` uses the site's own toggle.
-6. **Brand values** are passed as typed. The site's Marca facet lists brands in upper case (`SIKA`); lower-case input may not match. This matches what the site itself accepts.
+6. **`auth harvest` needs a display** for the browser it launches, or a Chrome already listening on a DevTools port to attach to. No test launches a browser; the browser step is integration only.
+7. **Brand values** are passed as typed. The site's Marca facet lists brands in upper case (`SIKA`); lower-case input may not match. This matches what the site itself accepts.
 
 ## Literal output
 

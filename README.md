@@ -23,7 +23,7 @@ buying materials means asking one question many times: does my store have this, 
 | | |
 |---|---|
 | `store list`, `category list` | work now, from the public sitemaps, no session needed |
-| `auth login` (cookies or HAR), `doctor`, `profile`, `config`, `mcp`, `update` | work now |
+| `auth harvest` (a real Chrome window), `auth login` (cookies or HAR), `doctor`, `profile`, `config`, `mcp`, `update` | work now |
 | `search`, `product show`, `product stock`, `watch`, `sink` | work now, with your browser session |
 | per-store pickup stock | works when the session has a store selected; otherwise stock shows online availability and home delivery |
 
@@ -63,6 +63,7 @@ make check     # vet, staticcheck, tests, gofmt
 check that it works:
 
 ```bash
+leroymerlin auth harvest
 leroymerlin store list --query madrid --format pretty
 leroymerlin doctor
 ```
@@ -71,11 +72,19 @@ leroymerlin doctor
 
 leroymerlin.es is behind bot protection, which answers scripts with a challenge page. the cli never solves challenges. it replays the session your own browser already earned, with your cookies, your browser's user agent and a chrome-like tls handshake, so the site sees the same browser it already trusts. no account and no password are involved.
 
-1. open leroymerlin.es in chrome and pick your store ("Elegir mi tienda")
-2. export the session:
-   - **HAR**: devtools → network. in devtools settings → preferences → network, enable "allow to generate HAR with sensitive data", reload, then "export HAR (with sensitive data)". a HAR also records your user agent
-   - **cookies**: a cookie-export extension, saved as json or cookies.txt
-3. import it
+the easy path is `auth harvest`: it opens a real chrome window (headed), waits while you clear any check by hand, and reads the cookies and user agent straight out of it.
+
+```bash
+leroymerlin auth harvest
+leroymerlin auth status
+```
+
+it attaches to a chrome you already started with `--remote-debugging-port` when one is listening (`--browser-url`, `LEROYMERLIN_CHROME_URL`, or `http://localhost:9222`), otherwise it launches one with a profile under `~/.local/share/leroymerlin-cli/chrome`, so a solved challenge survives to the next run. pick your store in that window before it finishes: stock follows it.
+
+the manual path still works, for scripts, ci and machines without a display. open leroymerlin.es in chrome, pick your store, then export:
+
+- **HAR**: devtools → network. in devtools settings → preferences → network, enable "allow to generate HAR with sensitive data", reload, then "export HAR (with sensitive data)". a HAR also records your user agent
+- **cookies**: a cookie-export extension, saved as json or cookies.txt
 
 ```bash
 leroymerlin auth login --har ~/Downloads/leroymerlin.har
@@ -119,7 +128,8 @@ interactive commands check for a new stable release at most once a day and ask b
 | `product show / stock` | one product, its price and where it is available (`item` works too) |
 | `watch add / list / check / events` | saved searches and products, reported as change events |
 | `sink list / test` | copy watch events to ntfy, a webhook or a script |
-| `auth login / status / logout` | import, inspect or forget the browser session (`login` is a shortcut) |
+| `auth harvest` | open a real Chrome, read the session out of it (no export file) |
+| `auth login / status / logout` | import an export, inspect or forget the browser session (`login` is a shortcut) |
 | `profile list / use / remove` | one session per store, side by side |
 | `store list / current` | every store from the public sitemap, and the one the session selected |
 | `category list` | the category tree, from the public sitemap |

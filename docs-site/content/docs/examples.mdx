@@ -56,19 +56,28 @@ pickup row per store (`on order`, `in stock` or `out of stock`, free when the pr
 is 0). Without one it reports online availability only; see
 [the session notes](/docs/reference/login).
 
-## import a browser session
+## get a browser session
 
-Choose a store on leroymerlin.es first, then export the cookies. Stock follows the
-store selected in the browser session.
+Choose a store on leroymerlin.es first. Stock follows the store selected in the
+browser session.
+
+The easy way opens a real Chrome window and reads the session out of it, user agent
+included:
 
 ```bash
-leroymerlin auth login --cookies ~/Downloads/leroymerlin-cookies.json
+leroymerlin auth harvest
 leroymerlin auth status --check
 ```
 
-A HAR from DevTools also works and carries the browser's user agent:
+It attaches to a Chrome already listening on a DevTools port when there is one, and
+keeps its own profile under the data directory otherwise, so a solved challenge
+survives to the next run.
+
+A session you already have as a file can be imported. A HAR from DevTools carries the
+browser's user agent:
 
 ```bash
+leroymerlin auth login --cookies ~/Downloads/leroymerlin-cookies.json
 leroymerlin auth login --har ~/Downloads/leroymerlin.har
 ```
 
