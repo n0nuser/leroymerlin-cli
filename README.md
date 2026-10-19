@@ -1,0 +1,164 @@
+<p align="center">
+  <img src=".github/assets/leroymerlin-cli-logo.svg" width="520" alt="leroymerlin cli logo">
+</p>
+
+<p align="center">
+  <a href="https://github.com/n0nuser/leroymerlin-cli/releases"><img src="https://img.shields.io/github/v/release/n0nuser/leroymerlin-cli?display_name=tag&style=flat-square&label=release&color=1c1917" alt="release badge"></a>
+  <a href="https://github.com/n0nuser/leroymerlin-cli/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/n0nuser/leroymerlin-cli/ci.yml?branch=main&style=flat-square&label=ci&color=1c1917" alt="ci badge"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-mit-1c1917?style=flat-square" alt="license badge"></a>
+</p>
+
+---
+
+`leroymerlin` is an unofficial terminal cli for leroymerlin.es. It lists stores and categories and checks stock at the store you buy from, so you know whether the bag of cement is on the shelf before you drive there. It compiles to one static Go binary. Output is json by default so everything pipes into `jq`; `--format pretty` is for humans. It is read-only: no cart, no checkout, nothing on your account.
+
+[documentation](https://DOCS_DOMAIN_TBD/docs) | [github](https://github.com/n0nuser/leroymerlin-cli)
+
+## why
+
+buying materials means asking one question many times: does my store have this, and how many. the website answers it one click at a time. this cli answers it from a script, an agent, or a shell loop, with the same json every time.
+
+## status
+
+| | |
+|---|---|
+| `store list`, `category list` | work now, from the public sitemaps, no session needed |
+| `auth login` (cookies or HAR), `doctor`, `profile`, `config`, `mcp`, `update` | work now |
+| `search`, `item`, per-store stock, `watch` | being built from captured pages; not in the binary yet |
+
+## quickstart
+
+### go install
+
+```bash
+go install github.com/n0nuser/leroymerlin-cli/cmd/leroymerlin@latest
+leroymerlin --version
+```
+
+### release binaries
+
+download the archive for your platform from [releases](https://github.com/n0nuser/leroymerlin-cli/releases) and check it:
+
+```bash
+sha256sum -c --ignore-missing checksums.txt
+tar xzf leroymerlin_*_linux_amd64.tar.gz leroymerlin && install -m 755 leroymerlin ~/.local/bin/
+```
+
+every release ships `checksums.txt` with a github provenance attestation:
+
+```sh
+gh release download --repo n0nuser/leroymerlin-cli --pattern checksums.txt
+gh attestation verify checksums.txt --repo n0nuser/leroymerlin-cli
+```
+
+### from source
+
+```bash
+git clone https://github.com/n0nuser/leroymerlin-cli && cd leroymerlin-cli
+make build     # bin/leroymerlin
+make check     # vet, staticcheck, tests, gofmt
+```
+
+check that it works:
+
+```bash
+leroymerlin store list --query madrid --format pretty
+leroymerlin doctor
+```
+
+### session
+
+leroymerlin.es is behind bot protection, which answers scripts with a challenge page. the cli does not try to beat it. it replays the session of your own browser: your cookies and your browser's user agent, over a chrome-like tls handshake. no account and no password are involved.
+
+1. open leroymerlin.es in chrome and pick your store ("Elegir mi tienda")
+2. export the session:
+   - **HAR**: devtools → network. in devtools settings → preferences → network, enable "allow to generate HAR with sensitive data", reload, then "export HAR (with sensitive data)". a HAR also records your user agent
+   - **cookies**: a cookie-export extension, saved as json or cookies.txt
+3. import it
+
+```bash
+leroymerlin auth login --har ~/Downloads/leroymerlin.har
+leroymerlin auth login --cookies ~/Downloads/leroymerlin-cookies.json
+leroymerlin auth status
+```
+
+only leroymerlin.es cookies are kept, so a whole-browser export is fine. the session is stored `0600` under `~/.config/leroymerlin-cli/sessions/`, and cookies the site rotates are saved back. when the site stops trusting the session, commands exit `5`: reload the site in the same browser and import again. `doctor` says which case you are in.
+
+for ci, point `LEROYMERLIN_COOKIEJAR` at an export. it is read on every run and never written to disk:
+
+```bash
+export LEROYMERLIN_COOKIEJAR=~/secrets/leroymerlin-cookies.json
+leroymerlin doctor
+```
+
+stock follows the store in the session, so use one profile per store to compare:
+
+```bash
+leroymerlin auth login --har madrid.har --profile madrid
+leroymerlin auth login --har getafe.har --profile getafe
+leroymerlin profile use madrid
+```
+
+## updates
+
+```bash
+leroymerlin update --check
+leroymerlin update --yes
+```
+
+interactive commands check for a new stable release at most once a day and ask before installing. scripts, mcp and `--no-input` never check. `LEROYMERLIN_NO_UPDATE_CHECK=1` turns the check off. archives are verified against `checksums.txt` before the binary is replaced. `go install` builds update with `go install`.
+
+## command surface
+
+| command | what it does |
+|---|---|
+| `auth login / status / logout` | import, inspect or forget the browser session (`login` is a shortcut) |
+| `profile list / use / remove` | one session per store, side by side |
+| `store list` | every store, from the public sitemap |
+| `category list` | the category tree, from the public sitemap |
+| `doctor` | config, session, sitemaps, and whether the storefront accepts the session |
+| `config path / list / get / set` | config.toml |
+| `mcp`, `mcp install claude-code\|codex\|cursor` | the read commands as mcp tools |
+| `skills list / get` | embedded docs for agents |
+| `update` | self-update from github releases |
+| `completion bash\|zsh\|fish\|powershell` | shell completion |
+
+global flags: `--profile`, `--format json|jsonl|pretty`, `--no-color`, `--error-format text|json`, `--no-input`, `--debug`.
+
+## examples
+
+```bash
+leroymerlin store list --compact --format pretty
+leroymerlin store list --format jsonl | jq -r .slug
+leroymerlin category list --parent construccion --depth 1 --format pretty
+leroymerlin category list --query cemento
+leroymerlin doctor --error-format json
+leroymerlin mcp install claude-code
+```
+
+## exit codes
+
+`0` ok, `1` generic, `2` usage, `3` no session, `4` not found, `5` challenged by the bot protection or rate limited, `6` network, `7` the site changed (stderr carries a prefilled issue link), `130` interrupted.
+
+## manners
+
+requests go one at a time, at least 1.5 seconds apart. there is no bulk mode and there will not be one. the site's robots.txt asks crawlers to stay away from search and stock pages. this is a tool for one person shopping, so keep scripts and agent loops small.
+
+## documentation
+
+- [docs/cli-spec.md](docs/cli-spec.md): the interface contract
+- [docs/leroymerlin-api-discovery.md](docs/leroymerlin-api-discovery.md): what the site does, endpoint by endpoint
+- [docs/adr](docs/adr): decisions (session replay, tls fingerprint, read-only)
+- [AGENTS.md](AGENTS.md): vocabulary and rules for contributors and agents
+
+## contributing
+
+issues and pull requests are welcome. when the site changes, the cli prints a prefilled issue link, and that is the most useful report you can file.
+
+## disclaimer
+
+this is an unofficial client. it is not affiliated with, endorsed by or sponsored by Leroy Merlin, and "Leroy Merlin" is used only to say which website it works with. it reads public pages with your own browser session for interoperability, at a human pace, and never buys anything. the site's terms may restrict automated access, and its robots.txt asks crawlers to stay off search and stock pages. use it responsibly, for your own shopping, and at your own risk.
+
+## license
+
+[mit license](LICENSE)
