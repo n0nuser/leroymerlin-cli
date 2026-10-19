@@ -12,7 +12,7 @@ An unofficial, read-only terminal client for leroymerlin.es. It covers stores, c
 - Live captures (HAR, cookie exports) are secrets. Keep them outside the repo; `.gitignore` blocks `*.har` and `*cookies*.json`. Strip cookies, `Set-Cookie` headers and context ids before anything becomes a fixture.
 - Do not add a way past the bot protection beyond the session replay of ADR 0001 and ADR 0002: no solvers, no stealth browsers, no proxies.
 - Keep the request pace (one at a time, at least 1.5 s apart). No bulk or mirror features.
-- Distribution is `go install`, the `curl|sh` script in `scripts/`, the release archives, and the `npm/` wrapper for `npx`. Publishing the npm package is gated on an `NPM_TOKEN` secret and is not wired into CI yet. Homebrew, Scoop and AUR are planned but need a tap repository, a scoop bucket and an AUR key; do not add them to `.goreleaser.yaml` before those exist.
+- Distribution is `go install`, the `curl|sh` script in `scripts/`, the release archives, and the `npm/` wrapper for `npx`. npm publishing runs from `.github/workflows/npm-publish.yml` on `v*` tags through npm Trusted Publishing (OIDC); there is no npm token in the repo. Before the first publish the owner must add a GitHub Actions trusted publisher on npmjs.com (owner `n0nuser`, repo `leroymerlin-cli`, workflow `npm-publish.yml`, environment empty). Homebrew, Scoop and AUR blocks sit commented in `.goreleaser.yaml`; enabling them needs a `homebrew-tap` repo plus `HOMEBREW_TAP_GITHUB_TOKEN`, a `scoop-bucket` repo plus `SCOOP_BUCKET_GITHUB_TOKEN`, and an AUR account plus `AUR_SSH_PRIVATE_KEY`.
 - Don't mention, credit or copy other projects in code, docs or commits.
 
 ## Language

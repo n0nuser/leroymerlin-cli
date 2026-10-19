@@ -48,3 +48,47 @@ release:
     name: leroymerlin-cli
   draft: false
   prerelease: auto
+
+# The three blocks below are ready but disabled. Each needs something this
+# account does not have yet, and enabling one without it fails release.yml.
+#
+# homebrew_casks: needs a `n0nuser/homebrew-tap` repository and a
+# `HOMEBREW_TAP_GITHUB_TOKEN` secret with write access to it.
+#
+# homebrew_casks:
+#   - repository:
+#       owner: n0nuser
+#       name: homebrew-tap
+#       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+#     homepage: https://github.com/n0nuser/leroymerlin-cli
+#     description: Unofficial, read-only terminal client for leroymerlin.es
+#     binaries:
+#       - leroymerlin
+
+# scoops: needs a `n0nuser/scoop-bucket` repository and a
+# `SCOOP_BUCKET_GITHUB_TOKEN` secret with write access to it.
+#
+# scoops:
+#   - repository:
+#       owner: n0nuser
+#       name: scoop-bucket
+#       token: "{{ .Env.SCOOP_BUCKET_GITHUB_TOKEN }}"
+#     homepage: https://github.com/n0nuser/leroymerlin-cli
+#     description: Unofficial, read-only terminal client for leroymerlin.es
+#     license: MIT
+
+# aurs: needs an AUR account for `n0nuser` and an `AUR_SSH_PRIVATE_KEY` secret
+# registered with aur.archlinux.org.
+#
+# aurs:
+#   - name: leroymerlin-bin
+#     homepage: https://github.com/n0nuser/leroymerlin-cli
+#     description: Unofficial, read-only terminal client for leroymerlin.es
+#     maintainers:
+#       - n0nuser
+#     license: MIT
+#     private_key: "{{ .Env.AUR_SSH_PRIVATE_KEY }}"
+#     git_url: "ssh://aur@aur.archlinux.org/leroymerlin-bin.git"
+#     package: |-
+#       install -Dm755 "./leroymerlin" "$pkgdir/usr/bin/leroymerlin"
+#       install -Dm644 "./LICENSE" "$pkgdir/usr/share/licenses/leroymerlin-bin/LICENSE"

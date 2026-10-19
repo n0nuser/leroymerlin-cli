@@ -72,7 +72,16 @@ leroymerlin --version
 
 ### npx
 
-once the npm wrapper is published (gated on an `NPM_TOKEN` secret, not set up yet):
+publishing the wrapper is automated in `.github/workflows/npm-publish.yml`, which
+runs on every `v*` tag and publishes through npm Trusted Publishing (OIDC). there
+is **no npm token** in this repository. the one step left for the account owner on
+npmjs.com, after the package exists the first time: open it, go to
+**Settings -> Trusted Publishers -> Add a publisher -> GitHub Actions**, and set
+owner `n0nuser`, repository `leroymerlin-cli`, workflow `npm-publish.yml`,
+environment (empty). until that exists the workflow fails; it is separate from
+the binary `release.yml` and does not affect releases.
+
+after the first publish:
 
 ```bash
 npx leroymerlin-cli search "cemento cola" --limit 3
@@ -125,9 +134,16 @@ ready-to-run recipes are in [examples/](examples).
 
 ### other package managers
 
-homebrew, scoop and aur are planned. each needs something this account does not
-have yet: a tap repository, a scoop bucket, and an aur ssh key. they are left out
-of `.goreleaser.yaml` on purpose.
+homebrew, scoop and aur are wired but disabled in `.goreleaser.yaml`, commented
+out. each needs something this account does not have yet, and enabling one
+without it fails `release.yml`:
+
+- **homebrew**: a `n0nuser/homebrew-tap` repository and a
+  `HOMEBREW_TAP_GITHUB_TOKEN` secret with write access to it.
+- **scoop**: a `n0nuser/scoop-bucket` repository and a
+  `SCOOP_BUCKET_GITHUB_TOKEN` secret with write access to it.
+- **aur**: an AUR account for `n0nuser` and an `AUR_SSH_PRIVATE_KEY` secret
+  registered with aur.archlinux.org.
 
 ## session
 
