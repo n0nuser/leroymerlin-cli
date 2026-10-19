@@ -29,7 +29,7 @@ challenge page. The cli gets through by replaying your own browser's cookies
 asked for, and an account is not needed: a guest session with a store
 selected is enough.`,
 	}
-	cmd.AddCommand(a.loginCmd(), a.statusCmd(), a.logoutCmd())
+	cmd.AddCommand(a.loginCmd(), a.harvestCmd(), a.statusCmd(), a.logoutCmd())
 	return cmd
 }
 

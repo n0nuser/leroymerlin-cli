@@ -36,7 +36,7 @@ Examples:
 	}
 	cmd.AddCommand(
 		&cobra.Command{Use: "path", Short: "Print where config, sessions and state live", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, args []string) error {
-			return a.Printer.Print(map[string]string{"config": a.Paths.ConfigFile, "sessions": a.Paths.SessionsDir, "state": a.Paths.StateDB})
+			return a.Printer.Print(map[string]string{"config": a.Paths.ConfigFile, "sessions": a.Paths.SessionsDir, "state": a.Paths.StateDB, "chrome": a.Paths.ChromeDir})
 		}},
 		&cobra.Command{Use: "list", Short: "Print the whole config", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, args []string) error {
 			return a.Printer.Print(a.Cfg)

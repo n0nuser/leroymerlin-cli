@@ -107,18 +107,19 @@ func (a *App) rootCmd() *cobra.Command {
 Unofficial and read-only: no cart, no checkout, no account changes.
 
 The site is behind bot protection, so the cli replays the session of your own
-browser: export leroymerlin.es cookies (or a HAR) and run ` + "`leroymerlin auth login`" + `.
+browser: run ` + "`leroymerlin auth harvest`" + ` to read it out of a real Chrome
+window, or export the cookies (or a HAR) and run ` + "`leroymerlin auth login`" + `.
 Store and category lists come from the public sitemaps and work without it.
 
 Output is JSON by default so every command pipes into jq. Use --format pretty
 for humans. Errors go to stderr; exit codes are in docs/cli-spec.md.
 
 Examples:
+  leroymerlin auth harvest
   leroymerlin search "cemento cola" --format pretty
   leroymerlin product stock 81866477
   leroymerlin store list --query madrid
   leroymerlin watch add search "cemento cola" --max-price 20 --name cola
-  leroymerlin auth login --cookies ~/Downloads/leroymerlin-cookies.json
   leroymerlin doctor
 
 Agent usage: leroymerlin skills get leroymerlin-usage`,
