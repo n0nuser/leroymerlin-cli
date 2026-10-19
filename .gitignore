@@ -2,3 +2,4 @@
 /dist/
 *.har
 *cookies*.json
+!internal/leroymerlin/testdata/*

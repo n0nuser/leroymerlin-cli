@@ -1,0 +1,5 @@
+# Netscape HTTP Cookie File
+# synthetic fixture
+.leroymerlin.es	TRUE	/	TRUE	1823896471	datadome	SYNTHETIC_DD_VALUE
+#HttpOnly_www.leroymerlin.es	FALSE	/	TRUE	0	lm-store	SYNTHETIC_STORE
+.example.com	TRUE	/	FALSE	0	other	must-not-import

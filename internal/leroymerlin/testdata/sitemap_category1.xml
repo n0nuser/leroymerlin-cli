@@ -1,0 +1,604 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:news="http://www.google.com/schemas/sitemap-news/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1" xmlns:video="http://www.google.com/schemas/sitemap-video/1.1">
+    
+    <url>
+        <loc>https://www.leroymerlin.es/productos/</loc>
+        <lastmod>2026-10-18</lastmod>
+        <image:image>
+            <image:loc>https://media.adeo.com/media/3455206/media.jpeg</image:loc>
+            <image:title>Productos</image:title>
+        </image:image>
+    </url>
+    <url>
+        <loc>https://www.leroymerlin.es/productos/equipamiento-de-emergencia-para-el-hogar/</loc>
+        <lastmod>2026-10-18</lastmod>
+        <image:image>
+            <image:loc>https://media.adeo.com/media/4748235/media.png</image:loc>
+            <image:title>Equipamiento de emergencia para el hogar</image:title>
+        </image:image>
+    </url>
+    <url>
+        <loc>https://www.leroymerlin.es/productos/iluminacion/</loc>
+        <lastmod>2026-10-18</lastmod>
+        <image:image>
+            <image:loc>https://media.adeo.com/media/5386008/media.jpeg</image:loc>
+            <image:title>Iluminación</image:title>
+        </image:image>
+    </url>
+    <url>
+        <loc>https://www.leroymerlin.es/productos/jardin-y-terraza/</loc>
+        <lastmod>2026-10-18</lastmod>
+        <image:image>
+            <image:loc>https://media.adeo.com/media/5384374/media.jpeg</image:loc>
+            <image:title>Jardín y terraza</image:title>
+        </image:image>
+    </url>
+    <url>
+        <loc>https://www.leroymerlin.es/productos/madera/</loc>
+        <lastmod>2026-10-18</lastmod>
+        <image:image>
+            <image:loc>https://media.adeo.com/media/3753799/media.png</image:loc>
+            <image:title>Madera</image:title>
+        </image:image>
+    </url>
+    <url>
+        <loc>https://www.leroymerlin.es/productos/muebles-armarios-y-ordenacion/</loc>
+        <lastmod>2026-10-18</lastmod>
+        <image:image>
+            <image:loc>https://media.adeo.com/media/3703441/media.jpeg</image:loc>
+            <image:title>Muebles, armarios y ordenación</image:title>
+        </image:image>
+    </url>
+    <url>
+        <loc>https://www.leroymerlin.es/productos/calefaccion-y-climatizacion/</loc>
+        <lastmod>2026-10-18</lastmod>
+        <image:image>
+            <image:loc>https://media.adeo.com/media/3136332/media.jpeg</image:loc>
+            <image:title>Calefacción y climatización</image:title>
+        </image:image>
+    </url>
+    <url>
+        <loc>https://www.leroymerlin.es/productos/pintura-y-drogueria/</loc>
+        <lastmod>2026-10-18</lastmod>
+        <image:image>
+            <image:loc>https://media.adeo.com/media/2438074/media.jpeg</image:loc>
+            <image:title>Pintura y droguería</image:title>
+        </image:image>
+    </url>
+    <url>
+        <loc>https://www.leroymerlin.es/productos/puertas-ventanas-y-escaleras/</loc>
+        <lastmod>2026-10-18</lastmod>
+        <image:image>
+            <image:loc>https://media.adeo.com/media/4653500/media.jpeg</image:loc>
+            <image:title>Puertas, ventanas y escaleras</image:title>
+        </image:image>
+    </url>
+    <url>
+        <loc>https://www.leroymerlin.es/productos/suelos/</loc>
+        <lastmod>2026-10-18</lastmod>
+        <image:image>
+            <image:loc>https://media.adeo.com/media/4477035/media.png</image:loc>
+            <image:title>Suelos</image:title>
+        </image:image>
+    </url>
+    <url>
+        <loc>https://www.leroymerlin.es/productos/energias-renovables/</loc>
+        <lastmod>2026-10-18</lastmod>
+        <image:image>
+            <image:loc>https://media.adeo.com/media/1863878/format/jpeg</image:loc>
+            <image:title>Energías renovables</image:title>
+        </image:image>
+    </url>
+    <url>
+        <loc>https://www.leroymerlin.es/productos/banos/</loc>
+        <lastmod>2026-10-18</lastmod>
+        <image:image>
+            <image:loc>https://media.adeo.com/media/1968194/media.jpeg</image:loc>
+            <image:title>Baños</image:title>
+        </image:image>
+    </url>
+    <url>
+        <loc>https://www.leroymerlin.es/productos/ceramica/</loc>
+        <lastmod>2026-10-18</lastmod>
+        <image:image>
+            <image:loc>https://media.adeo.com/media/2015582/media.jpeg</image:loc>
+            <image:title>Cerámica</image:title>
+        </image:image>
+    </url>
+    <url>
+        <loc>https://www.leroymerlin.es/productos/novedades/</loc>
+        <lastmod>2026-10-18</lastmod>
+        <image:image>
+            <image:loc>https://media.adeo.com/media/5505632/media.png</image:loc>
+            <image:title>Novedades</image:title>
+        </image:image>
+    </url>
+    <url>
+        <loc>https://www.leroymerlin.es/productos/cocinas/</loc>
+        <lastmod>2026-10-18</lastmod>
+        <image:image>
+            <image:loc>https://media.adeo.com/media/2294691/format/png</image:loc>
+            <image:title>Cocinas</image:title>
+        </image:image>
+    </url>
+    <url>
+        <loc>https://www.leroymerlin.es/productos/decoracion-navidena/</loc>
+        <lastmod>2026-10-18</lastmod>
+        <image:image>
+            <image:loc>https://media.adeo.com/media/5180717/media.png</image:loc>
+            <image:title>Navidad</image:title>
+        </image:image>
+    </url>
+    <url>
+        <loc>https://www.leroymerlin.es/productos/construccion/</loc>
+        <lastmod>2026-10-18</lastmod>
+        <image:image>
+            <image:loc>https://media.adeo.com/media/1822781/format/png</image:loc>
+            <image:title>Construcción</image:title>
+        </image:image>
+    </url>
+    <url>
+        <loc>https://www.leroymerlin.es/productos/seleccion-productos/</loc>
+        <lastmod>2026-10-18</lastmod>
+        <image:image>
+            <image:loc>https://media.adeo.com/media/3078281/media.jpeg</image:loc>
+            <image:title>Selección de productos</image:title>
+        </image:image>
+    </url>
+    <url>
+        <loc>https://www.leroymerlin.es/productos/decoracion/</loc>
+        <lastmod>2026-10-18</lastmod>
+        <image:image>
+            <image:loc>https://media.adeo.com/media/3952792/media.png</image:loc>
+            <image:title>Decoración</image:title>
+        </image:image>
+    </url>
+    <url>
+        <loc>https://www.leroymerlin.es/productos/home-index/</loc>
+        <lastmod>2026-10-18</lastmod>
+        <image:image>
+            <image:loc>https://media.adeo.com/media/4263064/media.png</image:loc>
+            <image:title>Home Index</image:title>
+        </image:image>
+    </url>
+    <url>
+        <loc>https://www.leroymerlin.es/productos/eficiencia-energetica/</loc>
+        <lastmod>2026-10-18</lastmod>
+        <image:image>
+            <image:loc>https://media.adeo.com/media/4695988/media.png</image:loc>
+            <image:title>Ahorra energía</image:title>
+        </image:image>
+    </url>
+    <url>
+        <loc>https://www.leroymerlin.es/productos/electricidad-y-domotica/</loc>
+        <lastmod>2026-10-18</lastmod>
+        <image:image>
+            <image:loc>https://media.adeo.com/media/2599865/format/jpeg</image:loc>
+            <image:title>Electricidad y domótica</image:title>
+        </image:image>
+    </url>
+    <url>
+        <loc>https://www.leroymerlin.es/productos/ferreteria-y-seguridad/</loc>
+        <lastmod>2026-10-18</lastmod>
+        <image:image>
+            <image:loc>https://media.adeo.com/media/2599895/format/jpeg</image:loc>
+            <image:title>Ferretería y seguridad</image:title>
+        </image:image>
+    </url>
+    <url>
+        <loc>https://www.leroymerlin.es/productos/fontaneria/</loc>
+        <lastmod>2026-10-18</lastmod>
+        <image:image>
+            <image:loc>https://media.adeo.com/media/2006809/format/jpeg</image:loc>
+            <image:title>Fontanería</image:title>
+        </image:image>
+    </url>
+    <url>
+        <loc>https://www.leroymerlin.es/productos/herramientas/</loc>
+        <lastmod>2026-10-18</lastmod>
+        <image:image>
+            <image:loc>https://media.adeo.com/media/2402050/format/jpeg</image:loc>
+            <image:title>Herramientas</image:title>
+        </image:image>
+    </url>
+    <url>
+        <loc>https://www.leroymerlin.es/productos/herramientas/</loc>
+        <lastmod>2026-10-18</lastmod>
+        <image:image>
+            <image:loc>https://media.adeo.com/media/2402050/format/jpeg</image:loc>
+            <image:title>Herramientas</image:title>
+        </image:image>
+    </url>
+    <url>
+        <loc>https://www.leroymerlin.es/productos/herramientas/bancos-de-trabajo/</loc>
+        <lastmod>2026-10-18</lastmod>
+        <image:image>
+            <image:loc>https://media.adeo.com/media/4619278/media.jpeg</image:loc>
+            <image:title>Bancos de trabajo</image:title>
+        </image:image>
+    </url>
+    <url>
+        <loc>https://www.leroymerlin.es/productos/herramientas/bancos-de-trabajo/banco-de-trabajo-plegable/</loc>
+        <lastmod>2026-10-18</lastmod>
+        <image:image>
+            <image:loc>https://media.adeo.com/media/3027898/media.jpeg</image:loc>
+            <image:title>Banco de trabajo plegable</image:title>
+        </image:image>
+    </url>
+    <url>
+        <loc>https://www.leroymerlin.es/productos/herramientas/bancos-de-trabajo/banco-de-trabajo-de-carpintero/</loc>
+        <lastmod>2026-10-18</lastmod>
+        <image:image>
+            <image:loc>https://media.adeo.com/media/1894679/media.png</image:loc>
+            <image:title>Banco de trabajo de carpintero</image:title>
+        </image:image>
+    </url>
+    <url>
+        <loc>https://www.leroymerlin.es/productos/herramientas/bancos-de-trabajo/banco-de-trabajo-taller/</loc>
+        <lastmod>2026-10-18</lastmod>
+        <image:image>
+            <image:loc>https://media.adeo.com/media/1908143/media.png</image:loc>
+            <image:title>Banco de trabajo taller</image:title>
+        </image:image>
+    </url>
+    <url>
+        <loc>https://www.leroymerlin.es/productos/herramientas/bancos-de-trabajo/accesorios-bancos-de-trabajo/</loc>
+        <lastmod>2026-10-18</lastmod>
+        <image:image>
+            <image:loc>https://media.adeo.com/media/2649790/media.png</image:loc>
+            <image:title>Accesorios bancos de trabajo</image:title>
+        </image:image>
+    </url>
+    <url>
+        <loc>https://www.leroymerlin.es/productos/herramientas/compresores-y-accesorios/</loc>
+        <lastmod>2026-10-18</lastmod>
+        <image:image>
+            <image:loc>https://media.adeo.com/media/4619277/media.jpeg</image:loc>
+            <image:title>Compresores y accesorios</image:title>
+        </image:image>
+    </url>
+    <url>
+        <loc>https://www.leroymerlin.es/productos/herramientas/compresores-y-accesorios/compresores-de-aire/</loc>
+        <lastmod>2026-10-18</lastmod>
+        <image:image>
+            <image:loc>https://media.adeo.com/media/3743258/media.png</image:loc>
+            <image:title>Compresores de aire</image:title>
+        </image:image>
+    </url>
+    <url>
+        <loc>https://www.leroymerlin.es/productos/herramientas/compresores-y-accesorios/compresores-de-aire/compresores-de-aire-silenciosos/</loc>
+        <lastmod>2026-10-18</lastmod>
+        <image:image>
+            <image:loc>https://media.adeo.com/media/1907839/media.jpeg</image:loc>
+            <image:title>Compresores de aire silenciosos</image:title>
+        </image:image>
+    </url>
+    <url>
+        <loc>https://www.leroymerlin.es/productos/herramientas/compresores-y-accesorios/compresores-de-aire/compresores-de-aire-para-coches/</loc>
+        <lastmod>2026-10-18</lastmod>
+        <image:image>
+            <image:loc>https://media.adeo.com/media/2840315/media.png</image:loc>
+            <image:title>Compresores de aire para coches</image:title>
+        </image:image>
+    </url>
+    <url>
+        <loc>https://www.leroymerlin.es/productos/herramientas/compresores-y-accesorios/compresores-de-aire/compresores-de-aire-pequenos/</loc>
+        <lastmod>2026-10-18</lastmod>
+        <image:image>
+            <image:loc>https://media.adeo.com/media/530562/media.jpeg</image:loc>
+            <image:title>Compresores de aire pequeños</image:title>
+        </image:image>
+    </url>
+    <url>
+        <loc>https://www.leroymerlin.es/productos/herramientas/compresores-y-accesorios/compresores-de-aire-industriales/</loc>
+        <lastmod>2026-10-18</lastmod>
+        <image:image>
+            <image:loc>https://media.adeo.com/media/3743260/media.png</image:loc>
+            <image:title>Compresores de aire industriales</image:title>
+        </image:image>
+    </url>
+    <url>
+        <loc>https://www.leroymerlin.es/productos/herramientas/compresores-y-accesorios/herramientas-neumaticas/</loc>
+        <lastmod>2026-10-18</lastmod>
+        <image:image>
+            <image:loc>https://media.adeo.com/media/3743273/media.png</image:loc>
+            <image:title>Herramientas neumáticas</image:title>
+        </image:image>
+    </url>
+    <url>
+        <loc>https://www.leroymerlin.es/productos/herramientas/compresores-y-accesorios/herramientas-neumaticas/llaves-de-impacto-neumaticas/</loc>
+        <lastmod>2026-10-18</lastmod>
+        <image:image>
+            <image:loc>https://media.adeo.com/media/1906566/media.png</image:loc>
+            <image:title>Llaves de impacto neumáticas</image:title>
+        </image:image>
+    </url>
+    <url>
+        <loc>https://www.leroymerlin.es/productos/herramientas/compresores-y-accesorios/herramientas-neumaticas/grapadoras-clavadoras-neumaticas/</loc>
+        <lastmod>2026-10-18</lastmod>
+        <image:image>
+            <image:loc>https://media.adeo.com/media/1334758/media.png</image:loc>
+            <image:title>Grapadoras clavadoras neumáticas</image:title>
+        </image:image>
+    </url>
+    <url>
+        <loc>https://www.leroymerlin.es/productos/herramientas/compresores-y-accesorios/herramientas-neumaticas/lijadoras-neumaticas/</loc>
+        <lastmod>2026-10-18</lastmod>
+        <image:image>
+            <image:loc>https://media.adeo.com/media/1893120/media.png</image:loc>
+            <image:title>Lijadoras neumáticas</image:title>
+        </image:image>
+    </url>
+    <url>
+        <loc>https://www.leroymerlin.es/productos/herramientas/compresores-y-accesorios/herramientas-neumaticas/pistolas-de-impacto-neumaticas/</loc>
+        <lastmod>2026-10-18</lastmod>
+        <image:image>
+            <image:loc>https://media.adeo.com/media/2693374/media.png</image:loc>
+            <image:title>Amoladora neumáticas</image:title>
+        </image:image>
+    </url>
+    <url>
+        <loc>https://www.leroymerlin.es/productos/herramientas/compresores-y-accesorios/kit-para-compresor-de-aire/</loc>
+        <lastmod>2026-10-18</lastmod>
+        <image:image>
+            <image:loc>https://media.adeo.com/media/3743466/media.jpeg</image:loc>
+            <image:title>Kit para compresor de aire</image:title>
+        </image:image>
+    </url>
+    <url>
+        <loc>https://www.leroymerlin.es/productos/herramientas/compresores-y-accesorios/mangueras-para-compresores/</loc>
+        <lastmod>2026-10-18</lastmod>
+        <image:image>
+            <image:loc>https://media.adeo.com/media/1318685/format/jpeg</image:loc>
+            <image:title>Mangueras para compresores</image:title>
+        </image:image>
+    </url>
+    <url>
+        <loc>https://www.leroymerlin.es/productos/herramientas/compresores-y-accesorios/acoples-y-conectores-para-compresor/</loc>
+        <lastmod>2026-10-18</lastmod>
+        <image:image>
+            <image:loc>https://media.adeo.com/media/3743380/media.png</image:loc>
+            <image:title>Acoples y conectores para compresor</image:title>
+        </image:image>
+    </url>
+    <url>
+        <loc>https://www.leroymerlin.es/productos/herramientas/compresores-y-accesorios/accesorios-de-compresores/</loc>
+        <lastmod>2026-10-18</lastmod>
+        <image:image>
+            <image:loc>https://media.adeo.com/media/86266/format/jpeg</image:loc>
+            <image:title>Accesorios de compresores</image:title>
+        </image:image>
+    </url>
+    <url>
+        <loc>https://www.leroymerlin.es/productos/herramientas/compresores-y-accesorios/grapas-para-grapadora-neumatica/</loc>
+        <lastmod>2026-10-18</lastmod>
+        <image:image>
+            <image:loc>https://media.adeo.com/media/319244/format/jpeg</image:loc>
+            <image:title>Grapas para grapadora neumática</image:title>
+        </image:image>
+    </url>
+    <url>
+        <loc>https://www.leroymerlin.es/productos/herramientas/compresores-y-accesorios/pistolas-para-pintar-con-compresor/</loc>
+        <lastmod>2026-10-18</lastmod>
+        <image:image>
+            <image:loc>https://media.adeo.com/media/3743470/media.jpeg</image:loc>
+            <image:title>Pistolas para pintar con compresor</image:title>
+        </image:image>
+    </url>
+    <url>
+        <loc>https://www.leroymerlin.es/productos/herramientas/soldadura/</loc>
+        <lastmod>2026-10-18</lastmod>
+        <image:image>
+            <image:loc>https://media.adeo.com/media/4619273/media.jpeg</image:loc>
+            <image:title>Soldadura</image:title>
+        </image:image>
+    </url>
+    <url>
+        <loc>https://www.leroymerlin.es/productos/herramientas/soldadura/soldadores-electricos/</loc>
+        <lastmod>2026-10-18</lastmod>
+        <image:image>
+            <image:loc>https://media.adeo.com/media/3743345/media.png</image:loc>
+            <image:title>Soldadores</image:title>
+        </image:image>
+    </url>
+    <url>
+        <loc>https://www.leroymerlin.es/productos/construccion/</loc>
+        <lastmod>2026-10-18</lastmod>
+        <image:image>
+            <image:loc>https://media.adeo.com/media/1822781/format/png</image:loc>
+            <image:title>Construcción</image:title>
+        </image:image>
+    </url>
+    <url>
+        <loc>https://www.leroymerlin.es/productos/construccion/novedades-en-materiales-de-construccion/</loc>
+        <lastmod>2026-10-18</lastmod>
+        <image:image>
+            <image:loc>https://media.adeo.com/media/3082012/media.jpeg</image:loc>
+            <image:title>Materiales con envío 24h</image:title>
+        </image:image>
+    </url>
+    <url>
+        <loc>https://www.leroymerlin.es/productos/construccion/cubiertas-y-tejados/</loc>
+        <lastmod>2026-10-18</lastmod>
+        <image:image>
+            <image:loc>https://media.adeo.com/media/1832983/media.jpeg</image:loc>
+            <image:title>Cubiertas y tejados</image:title>
+        </image:image>
+    </url>
+    <url>
+        <loc>https://www.leroymerlin.es/productos/construccion/cubiertas-y-tejados/paneles-sandwich/</loc>
+        <lastmod>2026-10-18</lastmod>
+        <image:image>
+            <image:loc>https://media.adeo.com/media/1831005/media.jpeg</image:loc>
+            <image:title>Panel sándwich</image:title>
+        </image:image>
+    </url>
+    <url>
+        <loc>https://www.leroymerlin.es/productos/construccion/cubiertas-y-tejados/paneles-sandwich/paneles-sandwich/</loc>
+        <lastmod>2026-10-18</lastmod>
+        <image:image>
+            <image:loc>https://media.adeo.com/media/2848463/media.jpeg</image:loc>
+            <image:title>Paneles sandwich</image:title>
+        </image:image>
+    </url>
+    <url>
+        <loc>https://www.leroymerlin.es/productos/construccion/cubiertas-y-tejados/cubiertas-y-tejas-sinteticas/</loc>
+        <lastmod>2026-10-18</lastmod>
+        <image:image>
+            <image:loc>https://media.adeo.com/media/1826922/format/jpeg</image:loc>
+            <image:title>Placas teja sintética</image:title>
+        </image:image>
+    </url>
+    <url>
+        <loc>https://www.leroymerlin.es/productos/construccion/cubiertas-y-tejados/cubiertas-y-tejas-sinteticas/placas-sinteticas/</loc>
+        <lastmod>2026-10-18</lastmod>
+        <image:image>
+            <image:loc>https://media.adeo.com/media/1832983/media.jpeg</image:loc>
+            <image:title>Placas sintéticas</image:title>
+        </image:image>
+    </url>
+    <url>
+        <loc>https://www.leroymerlin.es/productos/construccion/cubiertas-y-tejados/cubiertas-y-tejas-sinteticas/cumbreras-para-placas-sinteticas/</loc>
+        <lastmod>2026-10-18</lastmod>
+        <image:image>
+            <image:loc>https://media.adeo.com/media/1833029/media.jpeg</image:loc>
+            <image:title>Cumbreras para placas sintéticas</image:title>
+        </image:image>
+    </url>
+    <url>
+        <loc>https://www.leroymerlin.es/productos/construccion/cubiertas-y-tejados/cubiertas-y-tejas-asfaticas/</loc>
+        <lastmod>2026-10-18</lastmod>
+        <image:image>
+            <image:loc>https://media.adeo.com/media/1832924/format/png</image:loc>
+            <image:title>Placas asfálticas</image:title>
+        </image:image>
+    </url>
+    <url>
+        <loc>https://www.leroymerlin.es/productos/construccion/cubiertas-y-tejados/cubiertas-y-placas-policarbonato/</loc>
+        <lastmod>2026-10-18</lastmod>
+        <image:image>
+            <image:loc>https://media.adeo.com/media/1832810/format/jpeg</image:loc>
+            <image:title>Placas de policarbonato</image:title>
+        </image:image>
+    </url>
+    <url>
+        <loc>https://www.leroymerlin.es/productos/construccion/cubiertas-y-tejados/cubiertas-de-fibrocemento/</loc>
+        <lastmod>2026-10-18</lastmod>
+        <image:image>
+            <image:loc>https://media.adeo.com/media/1831632/format/png</image:loc>
+            <image:title>Placas de fibrocemento</image:title>
+        </image:image>
+    </url>
+    <url>
+        <loc>https://www.leroymerlin.es/productos/construccion/cubiertas-y-tejados/cubiertas-metalicas/</loc>
+        <lastmod>2026-10-18</lastmod>
+        <image:image>
+            <image:loc>https://media.adeo.com/media/1832851/format/png</image:loc>
+            <image:title>Placas metálicas</image:title>
+        </image:image>
+    </url>
+    <url>
+        <loc>https://www.leroymerlin.es/productos/construccion/cubiertas-y-tejados/accesorios-de-cubiertas-y-tejados/</loc>
+        <lastmod>2026-10-18</lastmod>
+        <image:image>
+            <image:loc>https://media.adeo.com/media/1822760/format/jpeg</image:loc>
+            <image:title>Accesorios de cubiertas y tejados</image:title>
+        </image:image>
+    </url>
+    <url>
+        <loc>https://www.leroymerlin.es/productos/construccion/cubiertas-y-tejados/teja-ceramica/</loc>
+        <lastmod>2026-10-18</lastmod>
+        <image:image>
+            <image:loc>https://media.adeo.com/media/1826566/format/png</image:loc>
+            <image:title>Teja cerámica</image:title>
+        </image:image>
+    </url>
+    <url>
+        <loc>https://www.leroymerlin.es/productos/construccion/cubiertas-y-tejados/teja-ceramica/teja-plana/</loc>
+        <lastmod>2026-10-18</lastmod>
+        <image:image>
+            <image:loc>https://media.adeo.com/media/1826128/format/png</image:loc>
+            <image:title>Teja plana</image:title>
+        </image:image>
+    </url>
+    <url>
+        <loc>https://www.leroymerlin.es/productos/construccion/cubiertas-y-tejados/teja-ceramica/accesorios-y-complementos-de-tejas/</loc>
+        <lastmod>2026-10-18</lastmod>
+        <image:image>
+            <image:loc>https://media.adeo.com/media/1833116/format/png</image:loc>
+            <image:title>Accesorios teja cerámica</image:title>
+        </image:image>
+    </url>
+    <url>
+        <loc>https://www.leroymerlin.es/productos/construccion/cubiertas-y-tejados/teja-de-pizarra/</loc>
+        <lastmod>2026-10-18</lastmod>
+        <image:image>
+            <image:loc>https://media.adeo.com/media/1831196/media.jpeg</image:loc>
+            <image:title>Teja de pizarra</image:title>
+        </image:image>
+    </url>
+    <url>
+        <loc>https://www.leroymerlin.es/productos/construccion/cubiertas-y-tejados/teja-de-hormigon/</loc>
+        <lastmod>2026-10-18</lastmod>
+        <image:image>
+            <image:loc>https://media.adeo.com/media/1826461/format/png</image:loc>
+            <image:title>Teja de hormigón</image:title>
+        </image:image>
+    </url>
+    <url>
+        <loc>https://www.leroymerlin.es/productos/construccion/cubiertas-y-tejados/placa-bajo-teja/</loc>
+        <lastmod>2026-10-18</lastmod>
+        <image:image>
+            <image:loc>https://media.adeo.com/media/1831034/format/png</image:loc>
+            <image:title>Placa bajo teja</image:title>
+        </image:image>
+    </url>
+    <url>
+        <loc>https://www.leroymerlin.es/productos/construccion/revestimiento-y-fachadas/</loc>
+        <lastmod>2026-10-18</lastmod>
+        <image:image>
+            <image:loc>https://media.adeo.com/media/1426215/format/jpeg</image:loc>
+            <image:title>Revestimiento y fachadas</image:title>
+        </image:image>
+    </url>
+    <url>
+        <loc>https://www.leroymerlin.es/productos/construccion/revestimiento-y-fachadas/revestimientos-de-fachada-de-pvc/</loc>
+        <lastmod>2026-10-18</lastmod>
+        <image:image>
+            <image:loc>https://media.adeo.com/media/2848903/media.png</image:loc>
+            <image:title>Lamas y paneles para fachada</image:title>
+        </image:image>
+    </url>
+    <url>
+        <loc>https://www.leroymerlin.es/productos/construccion/revestimiento-y-fachadas/aleros-y-bajotechos/</loc>
+        <lastmod>2026-10-18</lastmod>
+        <image:image>
+            <image:loc>https://media.adeo.com/media/3613994/media.jpeg</image:loc>
+            <image:title>Aleros y bajotechos</image:title>
+        </image:image>
+    </url>
+    <url>
+        <loc>https://www.leroymerlin.es/productos/construccion/revestimiento-y-fachadas/accesorios-de-revestimientos-y-fachadas/</loc>
+        <lastmod>2026-10-18</lastmod>
+        <image:image>
+            <image:loc>https://media.adeo.com/media/2848997/format/png</image:loc>
+            <image:title>Accesorios de revestimientos y fachadas</image:title>
+        </image:image>
+    </url>
+    <url>
+        <loc>https://www.leroymerlin.es/productos/construccion/aislamiento/</loc>
+        <lastmod>2026-10-18</lastmod>
+        <image:image>
+            <image:loc>https://media.adeo.com/media/4209529/media.jpeg</image:loc>
+            <image:title>Aislamiento</image:title>
+        </image:image>
+    </url>
+    <url>
+        <loc>https://www.leroymerlin.es/productos/construccion/aislamiento/proyectos-de-aislamiento/</loc>
+        <lastmod>2026-10-18</lastmod>
+        <image:image>
+            <image:loc>https://media.adeo.com/media/3314508/media.jpeg</image:loc>
+            <image:title>Proyectos de aislamiento</image:title>
+        </image:image>
+    </url>
+</urlset>
