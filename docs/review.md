@@ -13,7 +13,7 @@ The read surface is complete for one person shopping: stores, categories, search
 - `product stock` for `81866477` (Cemento cola Pegoland 25 kg), both without and with a store selected.
 - `product show` and a `watch add product` / `check` / `events` / `remove` cycle with the store-selected session.
 - Parser behaviour against seven no-store captures and two new store captures.
-- `auth harvest` for the session: cookie mapping through `ParseExport`, host matching, Chrome resolution, DevTools reachability and the challenge check, all unit-tested without launching a browser.
+- `auth harvest` for the session: profile auto-detection order, the copy plan and file modes, cleanup, free-port selection, cookie mapping through `ParseExport`, host matching, Chrome resolution, DevTools reachability and the challenge check, all unit-tested without launching a browser. A live run copied the real profile and passed `doctor`.
 - The full suite, `make check`, `make docs-check` and the docs-site build.
 
 ## Findings
@@ -25,8 +25,9 @@ The read surface is complete for one person shopping: stores, categories, search
 5. **The result page embeds about 18 products; the tail is lazy.** Accepted: `search` reports the site's total and the embedded slice instead of making dozens of per-card requests.
 6. **Promoted placements break strict price order.** The site pins a product at position 11 on a `price-asc` page. Accepted: the sort is the site's, not re-sorted locally.
 7. **Pickup `ONSITE` and `OUTOFSTOCK` are not captured.** The parser carries the raw status and the renderer handles both; only the fixtures for those two states are missing.
-8. **`auth harvest` replaces the manual export for interactive users.** It is headed by design, so it needs a display (or a Chrome to attach to), and the browser step is integration-only: the unit tests cover the mapping and resolution, not a launch. `auth login` stays for scripts and CI. **Documented and tested where it can be.**
-9. **A fresh harvest may not be trusted yet.** The live smoke test launched Chrome, cleared the page and stored six cookies, but the CLI's replay of that fresh cookie was challenged. A profile that showed a challenge waited instead. DataDome trust is earned by human browsing in the window; the command must not be treated as a way to skip that. **Documented as a caveat.**
+8. **`auth harvest` replaces the manual export for interactive users.** It is headed by design, so it needs a display (or a Chrome to attach to), and the browser step is integration-only: the unit tests cover the mapping, resolution and copy, not a launch. `auth login` stays for scripts and CI. **Documented and tested where it can be.**
+9. **Chrome 136+ cannot be attached to on its default profile.** The harvest copies `Local State` + the cookie store + `Preferences` into a `0700` temp directory, launches headed Chrome on that copy with a free port and `127.0.0.1`, and deletes the copy and the browser on every path out. The live run stored 13 cookies, `doctor` passed, `store current` resolved `037 / Salamanca` and search returned 716 products. **Fixed and verified.**
+10. **A fresh profile is a fallback, not the default.** It has no trust, so it may need a human-cleared check; if the copy cannot be decrypted because the OS keyring is unavailable, the harvest says so on timeout instead of storing a dead session. **Documented as a caveat.**
 
 ## Residual risks
 

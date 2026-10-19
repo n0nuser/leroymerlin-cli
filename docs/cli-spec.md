@@ -49,12 +49,15 @@ completion bash|zsh|fish|powershell
   - **Storage.** The session is saved 0600, atomically.
   - **Check.** Unless `--no-check`, one request to `/` reports `session_valid`. A challenge there does not undo the import.
   - **Refusal.** Refused (exit 2) while `LEROYMERLIN_COOKIEJAR` is set.
-- **`auth harvest [--browser-url URL] [--chrome PATH] [--user-agent UA] [--timeout D]`** reads the session out of a real Chrome window, so an export file is not needed (ADR 0005).
-  - **Attach first.** `--browser-url`, else `LEROYMERLIN_CHROME_URL`, else a probe of `http://localhost:9222`; when one answers, the running Chrome is driven.
-  - **Else launch.** `--chrome` / `LEROYMERLIN_CHROME`, else a common browser name in `PATH`, else the usual install locations. The window is headed and its profile is `$XDG_DATA_HOME/leroymerlin-cli/chrome`, so a solved challenge is not solved again.
-  - **Wait.** It opens `https://www.leroymerlin.es/` and polls every second, up to `--timeout` (default 5m), until the page is the storefront (title is not the challenge's, no `captcha-delivery` frame, no JavaScript wall) and a `datadome` cookie exists. The window stays open so a person can clear a captcha by hand; the cli never solves it.
+- **`auth harvest [--profile DIR] [--browser-url URL] [--chrome PATH] [--user-agent UA] [--timeout D]`** reads the session out of a real Chrome profile, so an export file is not needed (ADR 0005).
+  - **Chrome profile.** `--profile`, else `LEROYMERLIN_CHROME_PROFILE`, else auto-detection: `~/.config/google-chrome`, `~/.config/chromium`, `~/.config/google-chrome-beta`, `~/.config/chromium-browser` (macOS and Windows use their `Application Support` / `LocalAppData` roots). A profile qualifies when it has `Default/Cookies` or `Default/Network/Cookies`. This `--profile` is the **Chrome** profile directory, not the session profile: choose the session profile with `LEROYMERLIN_PROFILE` or `default_profile`, because the local flag shadows the global one inside this command.
+  - **The copy.** Only `Local State`, the cookie store (`Default/Cookies` or `Default/Network/Cookies`, with `-journal`/`-wal`/`-shm`) and `Default/Preferences` are copied into a `0700` directory under `$XDG_DATA_HOME/leroymerlin-cli`. Chrome 136+ ignores `--remote-debugging-port` on the default profile, so the copy is what lets the port open; the trusted `datadome` cookie travels with it. The copy and the browser are removed on every exit path, errors included.
+  - **Launch.** `--chrome` / `LEROYMERLIN_CHROME`, else a common browser name in `PATH`, else the usual install locations. Headed, on the copied profile, with a free DevTools port bound to `127.0.0.1`.
+  - **Attach mode.** `--browser-url`, else `LEROYMERLIN_CHROME_URL`, else a probe of `http://127.0.0.1:9222`; when one answers, that Chrome is driven instead and no profile is copied.
+  - **Fallback.** With no real profile found, it launches a fresh persistent profile at `$XDG_DATA_HOME/leroymerlin-cli/chrome`. A fresh profile has no trust, so it may need a hand-cleared captcha.
+  - **Wait.** It opens `https://www.leroymerlin.es/` and polls every second, up to `--timeout` (default 5m), until the page is the storefront (title is not the challenge's, no `captcha-delivery` frame, no JavaScript wall) and a `datadome` cookie exists. The window stays open so a person can clear a captcha by hand; the cli never solves it. If a copied profile cannot be decrypted (the OS keyring must be available to the same user), the timeout says so.
   - **Read.** Cookies and `navigator.userAgent` come over CDP, are rendered as a `{"userAgent","cookies"}` export (the shape `auth login` reads) and go through the same `ParseExport` and `SaveSession` (0600). `--user-agent` overrides the browser's.
-  - **Output.** `{profile,path,import_format,skipped_other_domains,session}`.
+  - **Output.** `{profile,path,import_format,skipped_other_domains,session,source,chrome_profile}`. `source` is `attach`, `profile` or `fresh`.
   - **Refusal.** Refused (exit 2) while `LEROYMERLIN_COOKIEJAR` is set, because that session would shadow the stored one.
 - **`auth status [--check]`** prints source (`file`, `env`, `none`), cookie names, whether `datadome` is present and its expiry, the user agent and the import time. Values are never printed.
 - **`auth logout`** deletes this profile's session file. The browser session is not touched.
@@ -184,7 +187,7 @@ Checks the latest stable GitHub release, verifies the archive's SHA-256 against 
 - **No proxy.** The storefront transport ignores `HTTPS_PROXY`/`HTTP_PROXY`, because a proxied connection would use Go's TLS hello instead of Chrome's.
 - **Rate:** one request at a time, at least 1.5 s apart plus up to 30% jitter. This holds across invocations too: the time of the last request is kept in `$XDG_STATE_HOME/leroymerlin-cli/last-request`. Two processes started at the same instant can still race.
 - **Redirects** are followed within leroymerlin.es only, five at most. The session is never sent to another host.
-- **`auth harvest` does not use this client.** It drives a real browser over CDP; the rate gate and the transport below apply to the commands that read pages with `net/http`.
+- **`auth harvest` does not use this client.** It drives a real browser over CDP; the rate gate and the transport below apply to the commands that read pages with `net/http`. Chrome 136+ does not open a DevTools port on its default profile, which is why the harvest launches a copy. The copy's cookies are read-only for the CLI: the browser owns the session while it runs.
 - **Cookie rotation.** The session is the HTTP client's cookie jar, so `Set-Cookie` on every hop, redirects included, updates the in-memory session. A file session is saved after the command, whether it succeeded or not. An env session never is.
 
 ## 10. Config, state, env
@@ -194,7 +197,8 @@ Checks the latest stable GitHub release, verifies the archive's SHA-256 against 
 | config | `$XDG_CONFIG_HOME/leroymerlin-cli/config.toml` (`LEROYMERLIN_CONFIG` overrides) | 0644 |
 | sessions | `$XDG_CONFIG_HOME/leroymerlin-cli/sessions/<profile>.json` | 0600, dir 0700, atomic |
 | state (watch) | `$XDG_DATA_HOME/leroymerlin-cli/state.db` | 0600 file, dir 0700, sqlite WAL |
-| harvest profile | `$XDG_DATA_HOME/leroymerlin-cli/chrome` | browser profile, dir 0700 |
+| harvest profile (fresh fallback) | `$XDG_DATA_HOME/leroymerlin-cli/chrome` | browser profile, dir 0700 |
+| harvest copy | `$XDG_DATA_HOME/leroymerlin-cli/harvest-profile-*` | 0700, removed on exit |
 | update stamp | `$XDG_STATE_HOME/leroymerlin-cli/update-check` | 0600 |
 | rate-gate stamp | `$XDG_STATE_HOME/leroymerlin-cli/last-request` | 0600 |
 

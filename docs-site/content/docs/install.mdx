@@ -38,16 +38,20 @@ leroymerlin store list --query madrid
 `store list` and `category list` read public sitemaps and need no session, so they are
 a quick way to see that the network path works.
 
-Then get a browser session. The easy way opens a real Chrome window, waits while you
-clear any check by hand, and reads the cookies and user agent out of it:
+Then get a browser session. The easy way copies the cookie store of your real Chrome
+profile into a temporary directory, opens Chrome on that copy, waits while you clear any
+check by hand, and reads the cookies and user agent out of it:
 
 ```bash
 leroymerlin auth harvest
 leroymerlin doctor
 ```
 
-Choose your store in that window before it finishes; stock follows it. A machine with no
-display, or a session you already have as a file, can import it instead:
+Chrome 136+ ignores the DevTools port on the default profile, so the copy is what makes
+the harvest work; the trusted `datadome` cookie travels with it. The copy is `0700` and
+is removed with the browser on every exit path. Choose your store in that window before
+it finishes; stock follows it. A machine with no display, or a session you already have
+as a file, can import it instead:
 
 ```bash
 leroymerlin auth login --cookies ~/Downloads/leroymerlin-cookies.json

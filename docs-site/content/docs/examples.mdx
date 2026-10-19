@@ -61,17 +61,19 @@ is 0). Without one it reports online availability only; see
 Choose a store on leroymerlin.es first. Stock follows the store selected in the
 browser session.
 
-The easy way opens a real Chrome window and reads the session out of it, user agent
-included:
+The easy way copies your real Chrome profile's cookie store into a temporary directory,
+opens Chrome on the copy and reads the session out of it, user agent included:
 
 ```bash
 leroymerlin auth harvest
 leroymerlin auth status --check
 ```
 
-It attaches to a Chrome already listening on a DevTools port when there is one, and
-keeps its own profile under the data directory otherwise, so a solved challenge
-survives to the next run.
+Chrome 136+ does not open a DevTools port on its default profile, so the copy is what
+makes the port work, and the trusted `datadome` cookie travels with it. The copy is
+`0700` and is always removed with the browser. It attaches to a Chrome already listening
+on a DevTools port when there is one, and falls back to a fresh profile (which may need a
+hand-cleared check) when no real profile exists.
 
 A session you already have as a file can be imported. A HAR from DevTools carries the
 browser's user agent:

@@ -14,37 +14,49 @@ replayed with the default user agent and accepted with the browser's own (see
 `docs/leroymerlin-api-discovery.md` §2).
 
 The browser already holds the session. Chrome exposes it over the DevTools protocol, and the cli can
-drive a browser it starts itself.
+drive a browser it starts itself. Two constraints shape how:
 
-Options:
+- **Chrome 136+ ignores `--remote-debugging-port` on the default profile.** Attaching to the Chrome a
+  person is already using therefore does not work, even with the flag set.
+- **A brand-new Chrome profile has no trusted `datadome` cookie.** A fresh profile can load the site
+  and still get challenged when the cli replays what it read, because DataDome trust was never
+  earned in that profile.
 
-1. **Drive the user's everyday Chrome profile** (the one they shop in). It already has the session.
-   But taking it over means the cli reads a profile full of the user's other cookies and tabs, and a
-   running Chrome only exposes DevTools on a port it was started with.
-2. **A dedicated Chrome profile the cli owns.** It lives under the data directory, has no other
-   cookies, and survives across runs so a solved challenge is not solved again every time.
-3. **Keep only manual export.** No new dependency, but the friction stays.
+What does work is a copy of the real profile: Chrome decrypts the copied cookie store with the same
+OS keyring, the trusted cookie travels with it, and because the copy is not the default profile the
+DevTools port opens.
 
 ## Decision
 
-Option 2, with option 1 as a fallback.
+Harvest from a copy of the user's real Chrome profile by default.
 
-- `auth harvest` launches Chrome (or Chromium, Brave, Edge) **headed** so a person can clear any
-  DataDome challenge it shows, with a persistent user-data-dir at
-  `$XDG_DATA_HOME/leroymerlin-cli/chrome`, so the `datadome` cookie and the selected store survive
-  across runs. The browser is found by name in `PATH` and the usual install locations, or named
-  outright with `--chrome` / `LEROYMERLIN_CHROME`.
-- **Attach instead of launch** when a DevTools endpoint is already up: `--browser-url`, then
-  `LEROYMERLIN_CHROME_URL`, then a probe of `http://localhost:9222`. That is how a user who keeps
-  Chrome open with `--remote-debugging-port` gets harvested without a second profile.
+- `auth harvest` resolves the profile from `--profile`, then `LEROYMERLIN_CHROME_PROFILE`, then
+  auto-detection: `~/.config/google-chrome`, `~/.config/chromium`, `~/.config/google-chrome-beta`,
+  `~/.config/chromium-browser` on Linux, and the usual `Application Support` / `LocalAppData`
+  locations on macOS and Windows. A profile qualifies when it has `Default/Cookies` or
+  `Default/Network/Cookies`.
+- It copies **only** `Local State` (the key reference), the cookie store (`Default/Cookies` or
+  `Default/Network/Cookies`, plus `-journal`, `-wal`, `-shm` when present) and `Default/Preferences`
+  into a fresh `0700` directory under `$XDG_DATA_HOME/leroymerlin-cli`. The rest of the profile is
+  never read or copied.
+- It launches Chrome (or Chromium, Brave, Edge) **headed** on that copy, with an explicit free
+  `--remote-debugging-port` bound to `127.0.0.1` (not `localhost`, which can resolve to `::1`). The
+  copy is what makes the port work on Chrome 136+.
+- The copy and the browser are removed on every path out, including errors: `PrepareProfile` returns
+  a cleanup that `Run` defers with a named return, and the allocator's cancel kills the browser
+  first. A copy is only made when a profile is found; a failed copy is removed before returning.
 - It navigates to `https://www.leroymerlin.es/` and polls every second, up to `--timeout` (default 5
   minutes), until the challenge is clear: the title is no longer the challenge's, the body no longer
   asks to enable JavaScript, no `captcha-delivery` frame is present, and a `datadome` cookie exists.
-  It never tries to solve the challenge itself.
+  It never tries to solve the challenge itself; the window stays open for a person.
+- **Attach instead of launch** when a DevTools endpoint is already up: `--browser-url`, then
+  `LEROYMERLIN_CHROME_URL`, then a probe of `http://127.0.0.1:9222`.
+- **Fresh profile as the last fallback** when no real profile is found. It persists under
+  `$XDG_DATA_HOME/leroymerlin-cli/chrome`, and it may need a human-cleared captcha because it starts
+  without trust.
 - It reads the cookies and `navigator.userAgent` over CDP, renders them as a Cookie-Editor-shaped
   JSON export with a `userAgent` field, and hands them to `ParseExport` and `config.SaveSession` —
-  the same code `auth login` uses. Nothing about storage is reimplemented; the harvest is just
-  another way to produce the export. `--user-agent` overrides the browser's.
+  the same code `auth login` uses. `--user-agent` overrides the browser's.
 - The command refuses while `LEROYMERLIN_COOKIEJAR` is set: an env session would shadow the one it
   is about to store.
 - The DevTools protocol comes from `github.com/chromedp/chromedp` (pure Go). No browser is bundled
@@ -52,22 +64,25 @@ Option 2, with option 1 as a fallback.
 
 ## Consequences
 
-- **A display is needed** for a launched browser, since it is headed on purpose. On Linux with no
-  `DISPLAY`/`WAYLAND_DISPLAY` the launch fails with that error; attaching to a running browser still
-  works.
-- **The profile is a cookie store.** `~/.local/share/leroymerlin-cli/chrome` holds the site session
-  (and only what browsing leroymerlin.es sets). It is meant to be long-lived; `auth logout` removes
-  the stored session file, not the profile.
+- **The copy is a cookie store.** It is `0700`, exists only for the run, and is removed on exit. A
+  hard kill (`SIGKILL`, power loss) can leave one behind under
+  `$XDG_DATA_HOME/leroymerlin-cli/harvest-profile-*`; it is still `0700` and holds only the cookie
+  store, not the profile.
+- **The OS keyring must be available to the same user.** On Linux Chrome decrypts v11 cookies with a
+  key in the login keyring (or the desktop's equivalent). If the copy cannot be decrypted, the
+  window shows a logged-out site and the harvest times out with that hint instead of storing a
+  session that does not work. The same rule covers macOS Keychain and Windows DPAPI.
+- **Chrome 136+ cannot be attached to on its default profile.** The copy is the supported path;
+  `--browser-url` only works for a browser started with a non-default profile and a debugging port.
+- **A fresh profile is a last resort.** It has no trust, so it may wait for a captcha. A real profile
+  supplies the trusted cookie and normally clears immediately.
+- **The profile is not in the session directory.** The copy is under the data directory; `auth
+  logout` removes the stored session file, not the copy (which is already gone).
 - **Not a bypass.** The browser is a real browser, and a human clears the challenge. When DataDome
   challenges again, the harvest waits rather than solving.
-- **Trust is earned by a human.** A freshly launched profile can receive a `datadome` cookie that
-  clears the page but is still challenged when the cli replays it. In the live smoke test the first
-  harvest stored six cookies and `doctor` then challenged them; later runs in that profile showed the
-  challenge and waited. If that happens, solve the check in the window and harvest again; the profile
-  keeps the result.
 - **`auth login` stays**, for scripts, CI (`LEROYMERLIN_COOKIEJAR`), a machine without a display, and
   a session a person already has as a file. For most interactive users the harvest replaces the
   manual export.
 - **Dependency policy.** `chromedp` is added for this; the TLS hello remains `utls`, the HTTPS client
-  remains `net/http`. No test launches a browser: the browser step is integration only, and only the
-  parsing and mapping are unit-tested.
+  remains `net/http`. No test launches a browser: the browser step is integration only, and the
+  profile detection, copy plan, cleanup, port and cookie mapping are unit-tested.

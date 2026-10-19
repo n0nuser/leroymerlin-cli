@@ -72,14 +72,16 @@ leroymerlin doctor
 
 leroymerlin.es is behind bot protection, which answers scripts with a challenge page. the cli never solves challenges. it replays the session your own browser already earned, with your cookies, your browser's user agent and a chrome-like tls handshake, so the site sees the same browser it already trusts. no account and no password are involved.
 
-the easy path is `auth harvest`: it opens a real chrome window (headed), waits while you clear any check by hand, and reads the cookies and user agent straight out of it.
+the easy path is `auth harvest`: it copies the cookie store of your real chrome profile into a temporary directory, opens chrome on that copy, waits while you clear any check by hand, and reads the cookies and user agent straight out of it. chrome 136+ ignores `--remote-debugging-port` on the default profile, so the copy is what makes the DevTools port work; the trusted `datadome` cookie comes with it.
 
 ```bash
 leroymerlin auth harvest
 leroymerlin auth status
 ```
 
-it attaches to a chrome you already started with `--remote-debugging-port` when one is listening (`--browser-url`, `LEROYMERLIN_CHROME_URL`, or `http://localhost:9222`), otherwise it launches one with a profile under `~/.local/share/leroymerlin-cli/chrome`, so a solved challenge survives to the next run. pick your store in that window before it finishes: stock follows it.
+the copy holds only `Local State`, `Default/Cookies` (or `Default/Network/Cookies`) and `Default/Preferences`, is `0700`, and is deleted along with the browser on every exit path, errors included. it auto-detects `~/.config/google-chrome` then `~/.config/chromium`; `--profile` (env `LEROYMERLIN_CHROME_PROFILE`) picks another chrome profile directory. that `--profile` is the chrome profile, not the session profile: use `LEROYMERLIN_PROFILE` or `default_profile` for the latter.
+
+it attaches to a chrome already started with `--remote-debugging-port` when one is listening (`--browser-url`, `LEROYMERLIN_CHROME_URL`, or `http://127.0.0.1:9222`). with no real profile it launches a fresh one under `~/.local/share/leroymerlin-cli/chrome`, which may need a hand-cleared captcha. pick your store in the window before it finishes: stock follows it.
 
 the manual path still works, for scripts, ci and machines without a display. open leroymerlin.es in chrome, pick your store, then export:
 

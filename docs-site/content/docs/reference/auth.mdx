@@ -33,21 +33,31 @@ window stays open while the command waits. If a Chrome debug endpoint is
 already running (--browser-url, LEROYMERLIN_CHROME_URL, or the default
 http://localhost:9222), the command attaches to it instead of launching.
 
-A launched browser keeps its profile under the data directory, so the session
-survives across runs. The harvested cookies and the browser's own user agent
-are stored 0600 exactly as `auth login` stores an export. Choose your
-store in that window before harvesting: stock follows it.
+By default it copies the cookie store of your real Chrome profile into a
+temporary directory, launches Chrome on that copy and reads the trusted session
+from it. Chrome 136+ ignores --remote-debugging-port on the default profile, so
+the copy is what makes the DevTools port work. The copy, and the browser that
+used it, are deleted on every path out. --profile picks the Chrome profile
+directory (not the session profile: use LEROYMERLIN_PROFILE or default_profile
+for that). Without a real profile it launches a fresh one, which may need a
+human to clear a check.
+
+The harvested cookies and the browser's own user agent are stored 0600 exactly
+as `auth login` stores an export. Choose your store in that window
+before harvesting: stock follows it.
 
 ```bash
 leroymerlin auth harvest
+leroymerlin auth harvest --profile ~/.config/google-chrome
 leroymerlin auth harvest --chrome /usr/bin/chromium --timeout 2m
-leroymerlin auth harvest --browser-url http://localhost:9222
+leroymerlin auth harvest --browser-url http://127.0.0.1:9222
 ```
 
 | Flag | Type | Default | Description |
 | --- | --- | --- | --- |
-| `--browser-url` | string | - | attach to this Chrome DevTools endpoint instead of launching (env LEROYMERLIN_CHROME_URL; default: probe http://localhost:9222) |
+| `--browser-url` | string | - | attach to this Chrome DevTools endpoint instead of launching (env LEROYMERLIN_CHROME_URL; default: probe http://127.0.0.1:9222) |
 | `--chrome` | string | - | Chrome or Chromium binary (env LEROYMERLIN_CHROME) |
+| `--profile` | string | - | Chrome profile directory to copy (env LEROYMERLIN_CHROME_PROFILE; default: auto-detect). Not the session profile: use LEROYMERLIN_PROFILE for that |
 | `--timeout` | duration | `5m0s` | how long to wait for the challenge to clear |
 | `--user-agent` | string | - | override the user agent (default: the browser's own) |
 
