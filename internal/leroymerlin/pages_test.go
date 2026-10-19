@@ -1,6 +1,8 @@
 package leroymerlin
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"testing"
 )
@@ -234,5 +236,35 @@ func TestHumanizeDeliveryTime(t *testing.T) {
 		if got := humanizeDeliveryTime(in); got != want {
 			t.Errorf("humanizeDeliveryTime(%q) = %q, want %q", in, got, want)
 		}
+	}
+}
+
+// Local filters belong to the query so `search` and a watched search apply
+// them the same way.
+func TestClientSearchAppliesLocalFilters(t *testing.T) {
+	raw := readFixture(t, "search_cemento_cola.html")
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write(raw)
+	}))
+	defer srv.Close()
+	c := &Client{BaseURL: srv.URL, HTTP: srv.Client()}
+	res, err := c.Search(t.Context(), SearchQuery{Keywords: "cemento", InStock: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Products) == 0 {
+		t.Fatal("in-stock filter removed everything")
+	}
+	for _, p := range res.Products {
+		if !p.Available {
+			t.Fatalf("in-stock filter kept %+v", p)
+		}
+	}
+	res, err = c.Search(t.Context(), SearchQuery{Keywords: "cemento", Limit: 3})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Products) != 3 {
+		t.Fatalf("limit 3 produced %d products", len(res.Products))
 	}
 }

@@ -66,26 +66,39 @@ func dataTmsValue(body []byte, name string) []json.RawMessage {
 	return out
 }
 
-var attrRe = regexp.MustCompile
+var classTextRe = regexp.MustCompile(`(?is)class="([^"]*)"[^>]*>([^<]*)<`)
 
 // htmlClassText returns the trimmed text of the first element with the given
 // class attribute, if the element has no child tags.
 func htmlClassText(body []byte, class string) string {
-	re := regexp.MustCompile(`(?is)class="[^"]*\b` + regexp.QuoteMeta(class) + `\b[^"]*"[^>]*>([^<]*)<`)
-	m := re.FindSubmatch(body)
-	if m == nil {
-		return ""
+	for _, m := range classTextRe.FindAllSubmatch(body, -1) {
+		for _, have := range strings.Fields(string(m[1])) {
+			if have == class {
+				return strings.Join(strings.Fields(string(m[2])), " ")
+			}
+		}
 	}
-	return strings.Join(strings.Fields(string(m[1])), " ")
+	return ""
 }
 
 // htmlAttr returns the value of an attribute on the first tag that carries
-// it, e.g. data-main-store-id on the page root component.
+// it, e.g. data-main-store-id on the page root component. The markup served by
+// the site spells attribute names in lower case.
 func htmlAttr(body []byte, name string) string {
-	re := attrRe(`(?is)<[a-z0-9-]+\b[^>]*\b` + regexp.QuoteMeta(name) + `="([^"]*)"`)
-	m := re.FindSubmatch(body)
-	if m == nil {
-		return ""
+	needle := []byte(name + `="`)
+	for off := 0; off < len(body); {
+		i := bytes.Index(body[off:], needle)
+		if i < 0 {
+			return ""
+		}
+		i += off
+		if i == 0 || body[i-1] == ' ' || body[i-1] == '\t' || body[i-1] == '\n' || body[i-1] == '\r' {
+			start := i + len(needle)
+			if end := bytes.IndexByte(body[start:], '"'); end >= 0 {
+				return string(body[start : start+end])
+			}
+		}
+		off = i + len(needle)
 	}
-	return string(m[1])
+	return ""
 }

@@ -6,8 +6,10 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/n0nuser/leroymerlin-cli/internal/leroymerlin"
+	"github.com/n0nuser/leroymerlin-cli/internal/store"
 )
 
 func (e *env) login() {
@@ -59,6 +61,16 @@ func TestSearchCLI(t *testing.T) {
 	}
 	if _, _, code := e.run("search", "cemento", "--sort", "cheapest"); code != 2 {
 		t.Fatalf("bad sort exit %d, want 2", code)
+	}
+	for _, args := range [][]string{
+		{"search", "cemento", "--min-price", "abc"},
+		{"search", "cemento", "--max-price", "NaN"},
+		{"search", "cemento", "--min-price", "30", "--max-price", "10"},
+		{"search", "cemento", "--limit", "-1"},
+	} {
+		if _, _, code := e.run(args...); code != 2 {
+			t.Errorf("%v exit %d, want 2", args, code)
+		}
 	}
 }
 
@@ -151,6 +163,9 @@ func TestWatchNeedsAName(t *testing.T) {
 	if _, _, code := e.run("watch", "check"); code != 2 {
 		t.Fatalf("check without --all exit %d, want 2", code)
 	}
+	if _, _, code := e.run("watch", "add", "search", "cemento", "--name", "paged", "--page", "2"); code != 2 {
+		t.Fatalf("watch add --page exit %d, want 2", code)
+	}
 }
 
 func TestSinkListAndTest(t *testing.T) {
@@ -237,5 +252,39 @@ func TestProductStockPickup(t *testing.T) {
 	pretty, _, code := e.run("product", "stock", "81866477", "--format", "pretty")
 	if code != 0 || !strings.Contains(pretty, "store pickup, 2 opening days, on order, 308 available, free") {
 		t.Fatalf("pretty stock = %s", pretty)
+	}
+}
+
+// Positional-argument mistakes are usage errors (exit 2), not generic ones,
+// as docs/cli-spec.md §7 promises.
+func TestBadArgumentsExitUsage(t *testing.T) {
+	e := newEnv(t)
+	for _, args := range [][]string{
+		{"product", "show"},
+		{"product", "stock", "1", "2"},
+		{"auth", "harvest", "extra"},
+		{"watch", "remove"},
+		{"config", "set", "only-one"},
+		{"store", "list", "extra"},
+	} {
+		if _, _, code := e.run(args...); code != 2 {
+			t.Errorf("%v exit %d, want 2", args, code)
+		}
+	}
+}
+
+func TestFastestInterval(t *testing.T) {
+	ws := []store.Watch{{Interval: 5 * time.Minute}, {Interval: 30 * time.Second}, {Interval: 2 * time.Minute}}
+	if got := fastestInterval(ws); got != 30*time.Second {
+		t.Fatalf("fastestInterval = %s", got)
+	}
+	if got := fastestInterval(nil); got != defaultWatchInterval {
+		t.Fatalf("empty interval = %s", got)
+	}
+	if got := fastestInterval([]store.Watch{{Interval: 0}}); got != defaultWatchInterval {
+		t.Fatalf("zero interval = %s", got)
+	}
+	if got := fastestInterval([]store.Watch{{Interval: 10 * time.Minute}}); got != 10*time.Minute {
+		t.Fatalf("a single slow watch = %s", got)
 	}
 }

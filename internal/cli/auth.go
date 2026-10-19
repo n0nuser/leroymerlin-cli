@@ -90,7 +90,7 @@ Examples:
   leroymerlin auth login --cookies ~/Downloads/leroymerlin-cookies.json
   leroymerlin auth login --har ~/Downloads/leroymerlin.har --profile valencia
   pbpaste | leroymerlin auth login --cookies-stdin --cookies-format header`,
-		Args: cobra.NoArgs,
+		Args: noArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if os.Getenv(config.CookieJarEnv) != "" {
 				return output.Usagef("%s is set, so a stored session would be ignored. Unset it to log in", config.CookieJarEnv)
@@ -200,11 +200,15 @@ func (r statusResult) Pretty(w io.Writer, color bool) {
 		fmt.Fprintf(w, "profile %s: no session\n", r.Profile)
 		return
 	}
+	datadome := fmt.Sprint(r.Session.HasDataDome)
+	if r.Session.HasDataDome && r.Session.Expires != nil {
+		datadome += " (expires " + r.Session.Expires.Format(time.DateOnly) + ")"
+	}
 	rows := [][]string{
 		{"profile", r.Profile},
 		{"source", r.Source + " " + r.Path},
 		{"cookies", strings.Join(r.Session.Names, ", ")},
-		{"datadome", fmt.Sprint(r.Session.HasDataDome)},
+		{"datadome", datadome},
 	}
 	if r.ImportedAt != nil {
 		rows = append(rows, []string{"imported", r.ImportedAt.Format(time.RFC3339)})
@@ -227,7 +231,7 @@ func (a *App) statusCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "status",
 		Short: "Show the session in use (cookie names only, never values)",
-		Args:  cobra.NoArgs,
+		Args:  noArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			out := statusResult{Profile: a.Profile, Source: "none"}
 			if s := a.Session; s != nil {
@@ -260,7 +264,7 @@ func (a *App) logoutCmd() *cobra.Command {
 		Use:   "logout",
 		Short: "Forget the stored session of this profile",
 		Long:  "Delete the stored session of this profile. Your browser session is not touched.",
-		Args:  cobra.NoArgs,
+		Args:  noArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			removed, err := config.RemoveSession(a.Paths, a.Profile)
 			if err != nil {

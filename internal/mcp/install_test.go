@@ -70,3 +70,18 @@ func TestToolArgvValidation(t *testing.T) {
 		}
 	}
 }
+
+func TestInstallJSONRefusesAMalformedEntry(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "mcp.json")
+	original := []byte(`{"mcpServers":{"leroymerlin":"oops"}}`)
+	if err := os.WriteFile(path, original, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := installJSON(path, "/bin/leroymerlin", []string{"mcp"}); err == nil {
+		t.Fatal("a non-object entry was overwritten")
+	}
+	raw, _ := os.ReadFile(path)
+	if string(raw) != string(original) {
+		t.Fatalf("file changed:\n%s", raw)
+	}
+}

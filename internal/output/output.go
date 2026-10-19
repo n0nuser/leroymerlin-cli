@@ -178,9 +178,9 @@ func Classify(err error, version, command string) Envelope {
 		env.Endpoint = le.Endpoint
 		switch le.Kind {
 		case leroymerlin.KindAuth:
-			env.SuggestedCommands = []string{"leroymerlin auth status", "leroymerlin auth login --cookies FILE"}
+			env.SuggestedCommands = []string{"leroymerlin auth harvest", "leroymerlin auth status"}
 		case leroymerlin.KindBlocked:
-			env.SuggestedCommands = []string{"leroymerlin doctor", "reload leroymerlin.es in your browser, then re-import the session"}
+			env.SuggestedCommands = []string{"leroymerlin auth harvest", "leroymerlin doctor"}
 		case leroymerlin.KindAPIChanged:
 			env.IssueURL = IssueURL(version, command, le)
 			env.SuggestedCommands = []string{"leroymerlin doctor", "rerun with --debug"}

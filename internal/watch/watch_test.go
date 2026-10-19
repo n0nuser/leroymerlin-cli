@@ -17,9 +17,11 @@ type fakeFetcher struct {
 	searchN  int
 	productN int
 	fail     bool
+	last     leroymerlin.SearchQuery
 }
 
 func (f *fakeFetcher) Search(ctx context.Context, q leroymerlin.SearchQuery) (*leroymerlin.SearchResult, error) {
+	f.last = q
 	if f.fail {
 		return nil, &leroymerlin.Error{Kind: leroymerlin.KindNetwork, Msg: "boom"}
 	}
@@ -167,6 +169,21 @@ func TestProductCheckTracksPriceAndStock(t *testing.T) {
 	}
 	if change["to_status"] != "ONORDER" {
 		t.Fatalf("stock change = %+v", change)
+	}
+}
+
+// A watched search keeps the local filters, so `watch add search --in-stock
+// --limit 5` means the same as a search with those flags.
+func TestSearchCheckCarriesLocalFilters(t *testing.T) {
+	ctx := t.Context()
+	target, _ := json.Marshal(SearchTarget{Query: leroymerlin.SearchQuery{Keywords: "cemento", InStock: true, Limit: 5}})
+	w := store.Watch{Name: "x", Kind: store.KindSearch, Target: target, Pages: 1}
+	f := &fakeFetcher{searches: []*leroymerlin.SearchResult{searchPage(product("1", 1, true))}}
+	if _, err := Check(ctx, f, w, nil); err != nil {
+		t.Fatal(err)
+	}
+	if !f.last.InStock || f.last.Limit != 5 {
+		t.Fatalf("check sent %+v, want the local filters", f.last)
 	}
 }
 

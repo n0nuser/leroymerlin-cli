@@ -2,6 +2,7 @@ package store
 
 import (
 	"encoding/json"
+	"errors"
 	"path/filepath"
 	"testing"
 	"time"
@@ -42,8 +43,8 @@ func TestWatchLifecycle(t *testing.T) {
 	if err != nil || got.ID != w.ID || string(got.Target) != string(target) {
 		t.Fatalf("WatchByName = %+v, %v", got, err)
 	}
-	if _, err := st.WatchByName(ctx, "nope"); err == nil {
-		t.Fatal("a missing watch did not error")
+	if _, err := st.WatchByName(ctx, "nope"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("missing watch error = %v, want ErrNotFound", err)
 	}
 	if ok, _ := st.RemoveWatch(ctx, "cola"); !ok {
 		t.Fatal("remove reported nothing")
@@ -64,7 +65,7 @@ func TestSeenAndEvents(t *testing.T) {
 	if err != nil || len(seen) != 0 {
 		t.Fatalf("initial Seen = %+v, %v", seen, err)
 	}
-	upsert := Seen{Ref: "81866477", Name: "Cemento", URL: "https://example/1.html", Price: 3.94, Currency: "EUR", Available: true, InStock: true, Snapshot: json.RawMessage(`{"ref":"81866477"}`)}
+	upsert := Seen{Ref: "81866477", Name: "Cemento", URL: "https://example/1.html", Price: 3.94, Currency: "EUR", Available: true, InStock: true}
 	ev := Event{Type: "product.price_changed", Watch: "pegoland", Profile: "default", At: time.Now().UTC(),
 		Product: json.RawMessage(`{"ref":"81866477"}`), Change: json.RawMessage(`{"from":5,"to":3.94}`)}
 	if err := st.CommitCheck(ctx, w.ID, []Seen{upsert}, nil, []Event{ev}); err != nil {
@@ -74,7 +75,7 @@ func TestSeenAndEvents(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := seen["81866477"]; got.Price != 3.94 || !got.Available || string(got.Snapshot) != `{"ref":"81866477"}` {
+	if got := seen["81866477"]; got.Price != 3.94 || !got.Available {
 		t.Fatalf("Seen = %+v", got)
 	}
 	events, err := st.Events(ctx, "pegoland", time.Time{}, 0)

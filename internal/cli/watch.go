@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
-	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -35,6 +33,13 @@ type watchAddFlags struct {
 	emitInitial bool
 }
 
+// watchAdd is a validated add request.
+type watchAdd struct {
+	name     string
+	interval time.Duration
+	sinks    []string
+}
+
 func (a *App) bindWatchAddFlags(cmd *cobra.Command, f *watchAddFlags, pages bool) {
 	cmd.Flags().StringVar(&f.name, "name", "", "watch name (required, used in events and commands)")
 	cmd.Flags().DurationVar(&f.interval, "interval", 0, "how often this watch is due (default from config, 5m; floor 30s)")
@@ -43,6 +48,22 @@ func (a *App) bindWatchAddFlags(cmd *cobra.Command, f *watchAddFlags, pages bool
 		cmd.Flags().IntVar(&f.pages, "pages", 1, "result pages to diff per check")
 	}
 	cmd.Flags().BoolVar(&f.emitInitial, "emit-initial", false, "report everything that exists now as events instead of baselining silently")
+}
+
+// prepareWatchAdd validates the add flags before any session or network work,
+// so a typo fails with exit 2 even when there is no session.
+func (a *App) prepareWatchAdd(f *watchAddFlags) (watchAdd, error) {
+	if !validWatchName(f.name) {
+		return watchAdd{}, output.Usagef("watch name %q must be letters, digits, - or _", f.name)
+	}
+	iv, err := a.configuredInterval(f.interval)
+	if err != nil {
+		return watchAdd{}, err
+	}
+	if err := a.checkSinks(f.notify); err != nil {
+		return watchAdd{}, err
+	}
+	return watchAdd{name: f.name, interval: iv, sinks: f.notify}, nil
 }
 
 func (a *App) configuredInterval(flag time.Duration) (time.Duration, error) {
@@ -93,17 +114,7 @@ func (a *App) checkSinks(names []string) error {
 
 // addWatch stores a watch and baselines it, so the first check only reports
 // real changes.
-func (a *App) addWatch(cmd *cobra.Command, kind string, target any, f *watchAddFlags) error {
-	if !validWatchName(f.name) {
-		return output.Usagef("watch name %q must be letters, digits, - or _", f.name)
-	}
-	iv, err := a.configuredInterval(f.interval)
-	if err != nil {
-		return err
-	}
-	if err := a.checkSinks(f.notify); err != nil {
-		return err
-	}
+func (a *App) addWatch(ctx context.Context, kind string, target any, add watchAdd, pages int, emitInitial bool) error {
 	raw, err := json.Marshal(target)
 	if err != nil {
 		return err
@@ -113,28 +124,28 @@ func (a *App) addWatch(cmd *cobra.Command, kind string, target any, f *watchAddF
 		return err
 	}
 	defer st.Close()
-	w, err := st.AddWatch(cmd.Context(), store.Watch{Name: f.name, Profile: a.Profile, Kind: kind, Target: raw, Sinks: f.notify, Interval: iv, Pages: max(f.pages, 1)})
+	w, err := st.AddWatch(ctx, store.Watch{Name: add.name, Profile: a.Profile, Kind: kind, Target: raw, Sinks: add.sinks, Interval: add.interval, Pages: max(pages, 1)})
 	if errors.Is(err, store.ErrExists) {
-		return output.Usagef("watch %q already exists. Remove it first or pick another name", f.name)
+		return output.Usagef("watch %q already exists. Remove it first or pick another name", add.name)
 	}
 	if err != nil {
 		return err
 	}
-	res, err := watch.Check(cmd.Context(), a.Client, w, map[string]store.Seen{})
+	res, err := watch.Check(ctx, a.Client, w, map[string]store.Seen{})
 	if err != nil {
 		return err
 	}
 	// Baseline silently: keep the state, drop the "everything is new" events,
 	// unless --emit-initial asked for them.
 	events := res.Events
-	if !f.emitInitial {
+	if !emitInitial {
 		events = nil
 	}
-	if err := st.CommitCheck(cmd.Context(), w.ID, res.Upserts, res.Removed, events); err != nil {
+	if err := st.CommitCheck(ctx, w.ID, res.Upserts, res.Removed, events); err != nil {
 		return err
 	}
-	a.deliver(cmd.Context(), w, events)
-	if f.emitInitial {
+	a.deliver(ctx, w, events)
+	if emitInitial {
 		return a.Printer.Print(eventList(events))
 	}
 	return a.Printer.Print(watchView{Watch: w, Seen: len(res.Upserts)})
@@ -151,83 +162,6 @@ func (a *App) deliver(ctx context.Context, w store.Watch, events []store.Event) 
 			}
 		}
 	}
-}
-
-type watchView struct {
-	store.Watch
-	Seen int `json:"seen,omitempty"`
-}
-
-func describeTarget(w store.Watch) string {
-	switch w.Kind {
-	case store.KindSearch:
-		var t watch.SearchTarget
-		if json.Unmarshal(w.Target, &t) == nil {
-			q := t.Query
-			if q.Keywords != "" {
-				return fmt.Sprintf("search %q", q.Keywords)
-			}
-			if q.Category != "" {
-				return "category " + q.Category
-			}
-		}
-	case store.KindProduct:
-		var t watch.ProductTarget
-		if json.Unmarshal(w.Target, &t) == nil {
-			return "product " + t.Ref
-		}
-	}
-	return ""
-}
-
-func (v watchView) Pretty(w io.Writer, color bool) {
-	fmt.Fprintf(w, "watch %s (%s) saved\n", v.Name, describeTarget(v.Watch))
-}
-
-type watchList []store.Watch
-
-func (l watchList) Pretty(w io.Writer, color bool) {
-	rows := make([][]string, 0, len(l))
-	for _, wt := range l {
-		last := "never"
-		if !wt.LastCheckAt.IsZero() {
-			last = wt.LastCheckAt.Format(time.RFC3339)
-		}
-		rows = append(rows, []string{wt.Name, wt.Kind, output.Truncate(describeTarget(wt), 40), wt.Interval.String(), strings.Join(wt.Sinks, ","), last, output.Dim(wt.Profile, color)})
-	}
-	output.Table(w, color, []string{"WATCH", "KIND", "TARGET", "EVERY", "SINKS", "CHECKED", "PROFILE"}, rows)
-}
-
-// eventList prints events as one JSON document, or one per line with jsonl.
-type eventList []store.Event
-
-func (l eventList) Pretty(w io.Writer, color bool) {
-	if len(l) == 0 {
-		fmt.Fprintln(w, output.Dim("no changes", color))
-		return
-	}
-	rows := make([][]string, 0, len(l))
-	for _, ev := range l {
-		var p struct {
-			Ref   string `json:"ref"`
-			Name  string `json:"name"`
-			Price *struct {
-				Amount   float64 `json:"amount"`
-				Currency string  `json:"currency"`
-			} `json:"price"`
-		}
-		_ = json.Unmarshal(ev.Product, &p)
-		price := "-"
-		if p.Price != nil {
-			price = fmt.Sprintf("%.2f %s", p.Price.Amount, p.Price.Currency)
-		}
-		change := ""
-		if len(ev.Change) > 0 {
-			change = string(ev.Change)
-		}
-		rows = append(rows, []string{ev.At.Format("15:04:05"), ev.Type, ev.Watch, p.Ref, price, output.Truncate(p.Name, 40), output.Truncate(change, 24)})
-	}
-	output.Table(w, color, []string{"AT", "TYPE", "WATCH", "REF", "PRICE", "NAME", "CHANGE"}, rows)
 }
 
 func (a *App) watchCmd() *cobra.Command {
@@ -250,7 +184,7 @@ Examples:
 	}
 	add := &cobra.Command{Use: "add", Short: "Create a watch"}
 	add.AddCommand(a.watchAddSearchCmd(), a.watchAddProductCmd())
-	cmd.AddCommand(add, a.watchListCmd(), a.watchRemoveCmd(), a.watchCheckCmd(false), a.watchRunCmd(), a.watchEventsCmd())
+	cmd.AddCommand(add, a.watchListCmd(), a.watchRemoveCmd(), a.watchCheckCmd(), a.watchRunCmd(), a.watchEventsCmd())
 	return cmd
 }
 
@@ -260,10 +194,14 @@ func (a *App) watchAddSearchCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "search [keywords...]",
 		Short: "Watch a search for new products and price changes",
-		Args:  cobra.ArbitraryArgs,
+		Args:  anyArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if !validWatchName(wf.name) {
-				return output.Usagef("watch name %q must be letters, digits, - or _", wf.name)
+			add, err := a.prepareWatchAdd(&wf)
+			if err != nil {
+				return err
+			}
+			if f.page > 1 {
+				return output.Usagef("--page is not used for a watch; use --pages N to diff several result pages")
 			}
 			q, err := searchQuery(args, f)
 			if err != nil {
@@ -272,7 +210,7 @@ func (a *App) watchAddSearchCmd() *cobra.Command {
 			if err := a.requireSession(); err != nil {
 				return err
 			}
-			return a.addWatch(cmd, store.KindSearch, watch.SearchTarget{Query: q}, &wf)
+			return a.addWatch(cmd.Context(), store.KindSearch, watch.SearchTarget{Query: q}, add, wf.pages, wf.emitInitial)
 		},
 	}
 	a.bindSearchFlags(cmd, &f)
@@ -285,10 +223,11 @@ func (a *App) watchAddProductCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "product REF",
 		Short: "Watch one product for price and stock changes",
-		Args:  cobra.ExactArgs(1),
+		Args:  exactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if !validWatchName(wf.name) {
-				return output.Usagef("watch name %q must be letters, digits, - or _", wf.name)
+			add, err := a.prepareWatchAdd(&wf)
+			if err != nil {
+				return err
 			}
 			if err := a.requireSession(); err != nil {
 				return err
@@ -297,7 +236,7 @@ func (a *App) watchAddProductCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return a.addWatch(cmd, store.KindProduct, watch.ProductTarget{Ref: p.Ref, URL: p.URL}, &wf)
+			return a.addWatch(cmd.Context(), store.KindProduct, watch.ProductTarget{Ref: p.Ref, URL: p.URL}, add, 1, wf.emitInitial)
 		},
 	}
 	a.bindWatchAddFlags(cmd, &wf, false)
@@ -309,7 +248,7 @@ func (a *App) watchListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "List watches for the active profile",
-		Args:  cobra.NoArgs,
+		Args:  noArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			st, err := a.openStore()
 			if err != nil {
@@ -339,7 +278,7 @@ func (a *App) watchRemoveCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "remove NAME",
 		Short: "Delete a watch and its history",
-		Args:  cobra.ExactArgs(1),
+		Args:  exactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := a.confirm(yes, fmt.Sprintf("Remove watch %q and its history?", args[0])); err != nil {
 				return err
@@ -367,8 +306,11 @@ func (a *App) watchRemoveCmd() *cobra.Command {
 func (a *App) selectWatches(ctx context.Context, st *store.Store, name string, all bool) ([]store.Watch, error) {
 	if name != "" {
 		w, err := st.WatchByName(ctx, name)
-		if err != nil {
+		switch {
+		case errors.Is(err, store.ErrNotFound):
 			return nil, output.Usagef("no watch named %q", name)
+		case err != nil:
+			return nil, err
 		}
 		return []store.Watch{w}, nil
 	}
@@ -385,13 +327,9 @@ func (a *App) selectWatches(ctx context.Context, st *store.Store, name string, a
 	return ws, nil
 }
 
-// checkWatches runs one check per watch and prints the events.
-func (a *App) checkWatches(ctx context.Context, ws []store.Watch) (eventList, error) {
-	st, err := a.openStore()
-	if err != nil {
-		return nil, err
-	}
-	defer st.Close()
+// checkWatches runs one check per watch and returns the events. The store is
+// owned by the caller, so a check does not reopen it.
+func (a *App) checkWatches(ctx context.Context, st *store.Store, ws []store.Watch) (eventList, error) {
 	all := eventList{}
 	for _, w := range ws {
 		seen, err := st.Seen(ctx, w.ID)
@@ -411,51 +349,86 @@ func (a *App) checkWatches(ctx context.Context, ws []store.Watch) (eventList, er
 	return all, nil
 }
 
-func (a *App) watchCheckCmd(run bool) *cobra.Command {
-	var all bool
-	use := "check [NAME]"
-	short := "Fetch each watch once and report what changed"
-	if run {
-		use = "run [NAME]"
-		short = "Check every watch in a loop until interrupted"
+// fastestInterval is the cadence of a run loop over several watches: the
+// shortest interval among them, never zero.
+func fastestInterval(ws []store.Watch) time.Duration {
+	iv := time.Duration(0)
+	for _, w := range ws {
+		if w.Interval > 0 && (iv == 0 || w.Interval < iv) {
+			iv = w.Interval
+		}
 	}
+	if iv == 0 {
+		return defaultWatchInterval
+	}
+	return iv
+}
+
+// bindWatchSelection adds --all and resolves the positional watch name.
+func (a *App) watchSelection(cmd *cobra.Command, args []string, all bool) (*store.Store, []store.Watch, error) {
+	if err := a.requireSession(); err != nil {
+		return nil, nil, err
+	}
+	st, err := a.openStore()
+	if err != nil {
+		return nil, nil, err
+	}
+	name := ""
+	if len(args) == 1 {
+		name = args[0]
+	}
+	ws, err := a.selectWatches(cmd.Context(), st, name, all)
+	if err != nil {
+		st.Close()
+		return nil, nil, err
+	}
+	return st, ws, nil
+}
+
+func (a *App) watchCheckCmd() *cobra.Command {
+	var all bool
 	cmd := &cobra.Command{
-		Use:   use,
-		Short: short,
-		Args:  cobra.MaximumNArgs(1),
+		Use:   "check [NAME]",
+		Short: "Fetch each watch once and report what changed",
+		Args:  maxArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := a.requireSession(); err != nil {
-				return err
-			}
-			st, err := a.openStore()
+			st, ws, err := a.watchSelection(cmd, args, all)
 			if err != nil {
 				return err
 			}
-			name := ""
-			if len(args) == 1 {
-				name = args[0]
-			}
-			ws, err := a.selectWatches(cmd.Context(), st, name, all)
-			st.Close()
+			defer st.Close()
+			events, err := a.checkWatches(cmd.Context(), st, ws)
 			if err != nil {
 				return err
 			}
-			if !run {
-				events, err := a.checkWatches(cmd.Context(), ws)
-				if err != nil {
-					return err
-				}
-				return a.Printer.Print(events)
+			return a.Printer.Print(events)
+		},
+	}
+	cmd.Flags().BoolVar(&all, "all", false, "every watch of this profile")
+	return cmd
+}
+
+func (a *App) watchRunCmd() *cobra.Command {
+	var all bool
+	cmd := &cobra.Command{
+		Use:   "run [NAME]",
+		Short: "Check every watch in a loop until interrupted",
+		Args:  maxArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			st, ws, err := a.watchSelection(cmd, args, all)
+			if err != nil {
+				return err
 			}
+			defer st.Close()
+			iv := fastestInterval(ws)
 			for {
-				events, err := a.checkWatches(cmd.Context(), ws)
+				events, err := a.checkWatches(cmd.Context(), st, ws)
 				if err != nil {
 					return err
 				}
 				if err := a.Printer.Print(events); err != nil {
 					return err
 				}
-				iv := ws[0].Interval
 				select {
 				case <-cmd.Context().Done():
 					return nil
@@ -468,15 +441,13 @@ func (a *App) watchCheckCmd(run bool) *cobra.Command {
 	return cmd
 }
 
-func (a *App) watchRunCmd() *cobra.Command { return a.watchCheckCmd(true) }
-
 func (a *App) watchEventsCmd() *cobra.Command {
 	var since string
 	var limit int
 	cmd := &cobra.Command{
 		Use:   "events [NAME]",
 		Short: "Print stored events",
-		Args:  cobra.MaximumNArgs(1),
+		Args:  maxArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name := ""
 			if len(args) == 1 {
@@ -507,76 +478,5 @@ func (a *App) watchEventsCmd() *cobra.Command {
 	}
 	cmd.Flags().StringVar(&since, "since", "", "only events newer than this duration, e.g. 24h")
 	cmd.Flags().IntVar(&limit, "limit", 0, "at most N events (0: all)")
-	return cmd
-}
-
-func (a *App) sinkCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "sink",
-		Short: "Sinks from config.toml: where watch events are copied",
-		Long: `Sinks from config.toml: where watch events are copied.
-
-By default events go to stdout. A watch can also name sinks with --notify; they
-receive a copy of every event of that watch. Three types are supported:
-
-  [sinks.topic]
-  type = "ntfy"
-  url = "https://ntfy.sh"
-  topic = "leroymerlin"
-
-  [sinks.hook]
-  type = "webhook"
-  url = "https://example.invalid/hooks/leroymerlin"
-
-  [sinks.script]
-  type = "exec"
-  command = ["~/bin/on-leroymerlin-event"]`,
-	}
-	list := &cobra.Command{
-		Use:   "list",
-		Short: "List the sinks declared in config.toml",
-		Args:  cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			type row struct {
-				Name    string `json:"name"`
-				Type    string `json:"type"`
-				Target  string `json:"target"`
-				Invalid string `json:"invalid,omitempty"`
-			}
-			rows := []row{}
-			for name, cfg := range a.Cfg.Sinks {
-				r := row{Name: name, Type: cfg.Type, Target: cfg.URL}
-				if cfg.Type == "exec" {
-					r.Target = strings.Join(cfg.Command, " ")
-				}
-				if err := sink.Validate(name, cfg); err != nil {
-					r.Invalid = err.Error()
-				}
-				rows = append(rows, r)
-			}
-			return a.Printer.Print(rows)
-		},
-	}
-	test := &cobra.Command{
-		Use:   "test NAME",
-		Short: "Send a test event to one sink",
-		Args:  cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg, ok := a.Cfg.Sinks[args[0]]
-			if !ok {
-				return output.Usagef("no sink named %q in %s", args[0], a.Paths.ConfigFile)
-			}
-			if err := sink.Validate(args[0], cfg); err != nil {
-				return output.Usagef("%v", err)
-			}
-			ev := store.Event{Type: "test", Watch: "test", Profile: a.Profile, At: time.Now().UTC(),
-				Product: json.RawMessage(`{"ref":"00000000","name":"leroymerlin-cli sink test","url":"https://www.leroymerlin.es"}`)}
-			if err := sink.Deliver(cmd.Context(), args[0], cfg, ev); err != nil {
-				return err
-			}
-			return a.Printer.Print(map[string]any{"sink": args[0], "delivered": true})
-		},
-	}
-	cmd.AddCommand(list, test)
 	return cmd
 }

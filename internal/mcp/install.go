@@ -79,9 +79,12 @@ func installJSON(path, command string, args []string) (string, error) {
 		servers = map[string]any{}
 		doc["mcpServers"] = servers
 	}
-	entry, _ := servers[ServerName].(map[string]any)
+	entry, exists := servers[ServerName].(map[string]any)
+	if _, present := servers[ServerName]; present && !exists {
+		return "", fmt.Errorf("%s: mcpServers.%s is not an object, so it was left alone", path, ServerName)
+	}
 	action := "updated"
-	if entry == nil {
+	if !exists {
 		entry, action = map[string]any{}, "added"
 	}
 	argList := make([]any, len(args))

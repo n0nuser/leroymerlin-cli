@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"cmp"
 	"fmt"
 	"io"
 	"os"
@@ -60,7 +61,7 @@ Examples:
   leroymerlin auth harvest --profile ~/.config/google-chrome
   leroymerlin auth harvest --chrome /usr/bin/chromium --timeout 2m
   leroymerlin auth harvest --browser-url http://127.0.0.1:9222`,
-		Args: cobra.NoArgs,
+		Args: noArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if os.Getenv(config.CookieJarEnv) != "" {
 				return output.Usagef("%s is set, so a stored session would be ignored. Unset it to harvest", config.CookieJarEnv)
@@ -142,23 +143,14 @@ func (r harvestResult) Pretty(w io.Writer, color bool) {
 	fmt.Fprintln(w, output.Dim("stored at "+r.Path, color))
 }
 
-func firstNonEmpty(vals ...string) string {
-	for _, v := range vals {
-		if v != "" {
-			return v
-		}
-	}
-	return ""
-}
-
 // resolveChromeEnv picks the DevTools endpoint and the browser binary: the
 // flag wins, then the environment.
 func resolveChromeEnv(browserURL, chrome string) (string, string) {
-	return firstNonEmpty(browserURL, os.Getenv(chromeURLEnv)), firstNonEmpty(chrome, os.Getenv(chromePathEnv))
+	return cmp.Or(browserURL, os.Getenv(chromeURLEnv)), cmp.Or(chrome, os.Getenv(chromePathEnv))
 }
 
 // resolveChromeProfile picks the Chrome profile directory: the flag wins, then
 // the environment, else empty for auto-detection.
 func resolveChromeProfile(flag string) string {
-	return firstNonEmpty(flag, os.Getenv(chromeProfileEnv))
+	return cmp.Or(flag, os.Getenv(chromeProfileEnv))
 }
