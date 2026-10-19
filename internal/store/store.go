@@ -42,16 +42,17 @@ type Watch struct {
 
 // Seen is the last known state of one product under one watch.
 type Seen struct {
-	Ref       string          `json:"ref"`
-	Name      string          `json:"name,omitempty"`
-	URL       string          `json:"url,omitempty"`
-	Price     float64         `json:"price,omitempty"`
-	Currency  string          `json:"currency,omitempty"`
-	Available bool            `json:"available"`
-	InStock   bool            `json:"in_stock"`
-	Store     string          `json:"store,omitempty"`
-	Stock     int             `json:"stock,omitempty"`
-	Snapshot  json.RawMessage `json:"-"`
+	Ref         string          `json:"ref"`
+	Name        string          `json:"name,omitempty"`
+	URL         string          `json:"url,omitempty"`
+	Price       float64         `json:"price,omitempty"`
+	Currency    string          `json:"currency,omitempty"`
+	Available   bool            `json:"available"`
+	InStock     bool            `json:"in_stock"`
+	Store       string          `json:"store,omitempty"`
+	Stock       int             `json:"stock,omitempty"`
+	StockStatus string          `json:"stock_status,omitempty"`
+	Snapshot    json.RawMessage `json:"-"`
 }
 
 // Event is one reported change.
@@ -92,6 +93,7 @@ CREATE TABLE IF NOT EXISTS seen (
   in_stock INTEGER NOT NULL DEFAULT 0,
   store_name TEXT NOT NULL DEFAULT '',
   stock INTEGER NOT NULL DEFAULT 0,
+  stock_status TEXT NOT NULL DEFAULT '',
   snapshot TEXT NOT NULL DEFAULT '',
   first_seen TEXT NOT NULL,
   last_seen TEXT NOT NULL,
@@ -124,6 +126,8 @@ func Open(path string) (*Store, error) {
 		db.Close()
 		return nil, fmt.Errorf("init state db: %w", err)
 	}
+	// Databases created before the column existed get it added in place.
+	_, _ = db.Exec(`ALTER TABLE seen ADD COLUMN stock_status TEXT NOT NULL DEFAULT ''`)
 	return &Store{db: db}, nil
 }
 
@@ -202,7 +206,7 @@ func (s *Store) RemoveWatch(ctx context.Context, name string) (bool, error) {
 
 // Seen is the last known state of everything under one watch.
 func (s *Store) Seen(ctx context.Context, watchID int64) (map[string]Seen, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT ref, name, url, price, currency, available, in_stock, store_name, stock, snapshot FROM seen WHERE watch_id = ?`, watchID)
+	rows, err := s.db.QueryContext(ctx, `SELECT ref, name, url, price, currency, available, in_stock, store_name, stock, stock_status, snapshot FROM seen WHERE watch_id = ?`, watchID)
 	if err != nil {
 		return nil, err
 	}
@@ -211,7 +215,7 @@ func (s *Store) Seen(ctx context.Context, watchID int64) (map[string]Seen, error
 	for rows.Next() {
 		var k Seen
 		var snap string
-		if err := rows.Scan(&k.Ref, &k.Name, &k.URL, &k.Price, &k.Currency, &k.Available, &k.InStock, &k.Store, &k.Stock, &snap); err != nil {
+		if err := rows.Scan(&k.Ref, &k.Name, &k.URL, &k.Price, &k.Currency, &k.Available, &k.InStock, &k.Store, &k.Stock, &k.StockStatus, &snap); err != nil {
 			return nil, err
 		}
 		k.Snapshot = json.RawMessage(snap)
@@ -230,12 +234,13 @@ func (s *Store) CommitCheck(ctx context.Context, watchID int64, upserts []Seen, 
 	defer tx.Rollback()
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	for _, k := range upserts {
-		if _, err := tx.ExecContext(ctx, `INSERT INTO seen (watch_id, ref, name, url, price, currency, available, in_stock, store_name, stock, snapshot, first_seen, last_seen)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		if _, err := tx.ExecContext(ctx, `INSERT INTO seen (watch_id, ref, name, url, price, currency, available, in_stock, store_name, stock, stock_status, snapshot, first_seen, last_seen)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 			ON CONFLICT(watch_id, ref) DO UPDATE SET name=excluded.name, url=excluded.url, price=excluded.price,
 			  currency=excluded.currency, available=excluded.available, in_stock=excluded.in_stock,
-			  store_name=excluded.store_name, stock=excluded.stock, snapshot=excluded.snapshot, last_seen=excluded.last_seen`,
-			watchID, k.Ref, k.Name, k.URL, k.Price, k.Currency, k.Available, k.InStock, k.Store, k.Stock, string(k.Snapshot), now, now); err != nil {
+			  store_name=excluded.store_name, stock=excluded.stock, stock_status=excluded.stock_status,
+			  snapshot=excluded.snapshot, last_seen=excluded.last_seen`,
+			watchID, k.Ref, k.Name, k.URL, k.Price, k.Currency, k.Available, k.InStock, k.Store, k.Stock, k.StockStatus, string(k.Snapshot), now, now); err != nil {
 			return err
 		}
 	}

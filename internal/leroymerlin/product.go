@@ -154,10 +154,9 @@ func ParseProductPage(body []byte) (*ProductPage, error) {
 				p.Seller, p.SellerType = it.Offer.Seller, it.Offer.SellerTyp
 			}
 			for _, d := range it.Offer.Deliveries {
-				dl := Delivery{Type: d.Type, Stock: d.Stock, Status: d.Status, Time: d.Time}
-				if d.Price > 0 {
-					dl.Price = &Money{Amount: d.Price, Currency: "EUR"}
-				}
+				// The site always states a price; 0 means free pickup.
+				dl := Delivery{Type: d.Type, Stock: d.Stock, Status: d.Status, Time: d.Time,
+					Price: &Money{Amount: d.Price, Currency: "EUR"}}
 				p.Deliveries = append(p.Deliveries, dl)
 			}
 		}
@@ -181,6 +180,11 @@ func ParseProductPage(body []byte) (*ProductPage, error) {
 func parseStore(body []byte) *StoreRef {
 	id := htmlAttr(body, "data-main-store-id")
 	name := htmlAttr(body, "data-main-store-name")
+	if id == "" {
+		// The home page states the store as data-store-id on the context
+		// header, without the data-main- prefix the product page uses.
+		id = htmlAttr(body, "data-store-id")
+	}
 	if id == "" && name == "" {
 		for _, raw := range dataTmsValue(body, "cdl_user_context_main_store") {
 			var v string

@@ -13,7 +13,7 @@ import (
 
 // fakeSite serves the captured fixtures. "/" answers according to *home:
 // "ok", or "block" for the captured challenge page.
-func fakeSite(t *testing.T, home *string) *httptest.Server {
+func fakeSite(t *testing.T, home *string, withStore *bool) *httptest.Server {
 	t.Helper()
 	fixture := func(name string) []byte {
 		raw, err := os.ReadFile(filepath.Join("..", "leroymerlin", "testdata", name))
@@ -36,6 +36,10 @@ func fakeSite(t *testing.T, home *string) *httptest.Server {
 				return
 			}
 			http.SetCookie(w, &http.Cookie{Name: "datadome", Value: "ROTATED", Domain: ".leroymerlin.es", Path: "/", MaxAge: 3600})
+			if *withStore {
+				w.Write(fixture("home_salamanca.html"))
+				return
+			}
 			w.Write(fixture("home_nostore.html"))
 		case "/search":
 			switch {
@@ -49,6 +53,10 @@ func fakeSite(t *testing.T, home *string) *httptest.Server {
 		case "/productos/construccion/cementos-morteros-y-yesos/cementos/":
 			w.Write(fixture("category_cementos.html"))
 		case "/productos/cemento-cola-pegoland-blanco-25-kg-81866477.html":
+			if *withStore {
+				w.Write(fixture("product_81866477_store.html"))
+				return
+			}
 			w.Write(fixture("product_81866477.html"))
 		case "/productos/mortero-cola-axton-flexible-gel-blanco-25-kg-81944344.html":
 			w.Write(fixture("product_81944344.html"))
@@ -61,14 +69,15 @@ func fakeSite(t *testing.T, home *string) *httptest.Server {
 }
 
 type env struct {
-	t    *testing.T
-	home string
-	page string
+	t         *testing.T
+	home      string
+	page      string
+	withStore bool
 }
 
 func newEnv(t *testing.T) *env {
 	e := &env{t: t, home: t.TempDir(), page: "ok"}
-	srv := fakeSite(t, &e.page)
+	srv := fakeSite(t, &e.page, &e.withStore)
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(e.home, "config"))
 	t.Setenv("XDG_DATA_HOME", filepath.Join(e.home, "data"))
 	t.Setenv("XDG_STATE_HOME", filepath.Join(e.home, "state"))

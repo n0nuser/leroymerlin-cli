@@ -135,9 +135,9 @@ func TestProductCheckTracksPriceAndStock(t *testing.T) {
 	target, _ := json.Marshal(ProductTarget{Ref: "9", URL: "/productos/x-9.html"})
 	f := &fakeFetcher{products: []*leroymerlin.ProductPage{
 		{Ref: "9", Name: "Cemento", URL: "https://example/9", Price: &leroymerlin.Money{Amount: 4, Currency: "EUR"}, InStock: true, Available: true,
-			Store: &leroymerlin.StoreRef{ID: "33", Name: "Badalona"}, Deliveries: []leroymerlin.Delivery{{Type: "storePickup", Stock: 4}}},
+			Store: &leroymerlin.StoreRef{ID: "33", Name: "Badalona"}, Deliveries: []leroymerlin.Delivery{{Type: "storePickup", Stock: 4, Status: "ONSITE"}}},
 		{Ref: "9", Name: "Cemento", URL: "https://example/9", Price: &leroymerlin.Money{Amount: 5, Currency: "EUR"}, InStock: true, Available: true,
-			Store: &leroymerlin.StoreRef{ID: "33", Name: "Badalona"}, Deliveries: []leroymerlin.Delivery{{Type: "storePickup", Stock: 0}}},
+			Store: &leroymerlin.StoreRef{ID: "33", Name: "Badalona"}, Deliveries: []leroymerlin.Delivery{{Type: "storePickup", Stock: 4, Status: "ONORDER"}}},
 	}}
 	w, err := newStore(t).AddWatch(ctx, store.Watch{Name: "p", Profile: "default", Kind: store.KindProduct, Target: target})
 	if err != nil {
@@ -158,6 +158,15 @@ func TestProductCheckTracksPriceAndStock(t *testing.T) {
 	}
 	if !types["product.price_changed"] || !types["product.stock_changed"] {
 		t.Fatalf("events = %+v", types)
+	}
+	var change map[string]string
+	for _, ev := range res.Events {
+		if ev.Type == "product.stock_changed" {
+			_ = json.Unmarshal(ev.Change, &change)
+		}
+	}
+	if change["to_status"] != "ONORDER" {
+		t.Fatalf("stock change = %+v", change)
 	}
 }
 

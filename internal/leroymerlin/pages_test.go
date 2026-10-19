@@ -166,6 +166,37 @@ func TestProductFixtureOutOfStock(t *testing.T) {
 	}
 }
 
+// product_81866477_store.html is the same product with store 037 (Salamanca)
+// selected in the session: the offer gains a storeDelivery row.
+func TestProductFixtureWithSelectedStore(t *testing.T) {
+	p, err := ParseProductPage(readFixture(t, "product_81866477_store.html"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.Store == nil || p.Store.ID != "037" || p.Store.Name != "Salamanca" {
+		t.Fatalf("store = %+v", p.Store)
+	}
+	if len(p.Deliveries) != 2 {
+		t.Fatalf("deliveries = %+v", p.Deliveries)
+	}
+	var pickup *Delivery
+	for i := range p.Deliveries {
+		if p.Deliveries[i].Type == "storeDelivery" {
+			pickup = &p.Deliveries[i]
+		}
+	}
+	if pickup == nil {
+		t.Fatalf("no storeDelivery in %+v", p.Deliveries)
+	}
+	if pickup.Stock != 308 || pickup.Status != "ONORDER" || pickup.Time != "2 opening days" {
+		t.Fatalf("pickup = %+v", pickup)
+	}
+	if pickup.Price == nil || pickup.Price.Amount != 0 {
+		t.Fatalf("pickup price = %+v, want free", pickup.Price)
+	}
+	roundTrip(t, *p)
+}
+
 // Regression: a product reference must be read from the URL, not guessed from
 // the page's recommendation list.
 func TestRefFromURL(t *testing.T) {
@@ -182,14 +213,14 @@ func TestRefFromURL(t *testing.T) {
 }
 
 // The captured home page has no store chosen ("¿Dónde estás?"), so stock is
-// online only. A session with a store renders data-main-store-id instead.
-func TestStoreContextWithoutStore(t *testing.T) {
-	body := readFixture(t, "home_nostore.html")
-	if s := ParseStoreContext(body); s != nil {
+// online only. A session with a store renders data-store-id, data-main-store-id
+// and the store name instead.
+func TestStoreContext(t *testing.T) {
+	if s := ParseStoreContext(readFixture(t, "home_nostore.html")); s != nil {
 		t.Fatalf("a session with no store reported %+v", s)
 	}
-	syn := []byte(`<div class="context-header-container" data-main-store-id="33" data-main-store-name="Badalona"></div>`)
-	if s := ParseStoreContext(syn); s == nil || s.ID != "33" || s.Name != "Badalona" {
+	s := ParseStoreContext(readFixture(t, "home_salamanca.html"))
+	if s == nil || s.ID != "037" || s.Name != "Salamanca" {
 		t.Fatalf("selected store = %+v", s)
 	}
 }

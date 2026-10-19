@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -37,17 +38,48 @@ func (p productView) Pretty(w io.Writer, color bool) {
 		add("store", output.Dim("none selected in this session", color))
 	}
 	for _, d := range p.Deliveries {
-		line := d.Type
-		if d.Time != "" {
-			line += ", " + d.Time
-		}
-		if d.Stock > 0 {
-			line += fmt.Sprintf(", %d in stock", d.Stock)
-		}
-		add("delivery", line)
+		add("delivery", deliveryLine(d))
 	}
 	add("url", p.URL)
 	output.Table(w, color, nil, rows)
+}
+
+// deliveryLine renders one delivery option for humans, keeping the site's
+// status codes readable: ONORDER is "on order", not "in stock".
+func deliveryLine(d leroymerlin.Delivery) string {
+	label := d.Type
+	switch d.Type {
+	case "storeDelivery", "storePickup":
+		label = "store pickup"
+	case "homeDelivery":
+		label = "home delivery"
+	}
+	parts := []string{label}
+	if d.Time != "" {
+		parts = append(parts, d.Time)
+	}
+	switch d.Status {
+	case "ONSITE":
+		parts = append(parts, "in stock")
+	case "ONORDER":
+		parts = append(parts, "on order")
+	case "OUTOFSTOCK":
+		parts = append(parts, "out of stock")
+	case "":
+	default:
+		parts = append(parts, d.Status)
+	}
+	if d.Stock > 0 {
+		parts = append(parts, fmt.Sprintf("%d available", d.Stock))
+	}
+	if d.Price != nil {
+		if d.Price.Amount == 0 {
+			parts = append(parts, "free")
+		} else {
+			parts = append(parts, fmt.Sprintf("%.2f %s", d.Price.Amount, d.Price.Currency))
+		}
+	}
+	return strings.Join(parts, ", ")
 }
 
 // stockView is the answer to "will my store have it": the selected store when
@@ -73,17 +105,7 @@ func (v stockView) Pretty(w io.Writer, color bool) {
 	}
 	rows = append(rows, []string{"online", fmt.Sprint(v.Online)})
 	for _, d := range v.Deliveries {
-		line := d.Type
-		if d.Time != "" {
-			line += ", " + d.Time
-		}
-		if d.Stock > 0 {
-			line += fmt.Sprintf(", %d available", d.Stock)
-		}
-		if d.Price != nil {
-			line += fmt.Sprintf(", %.2f %s", d.Price.Amount, d.Price.Currency)
-		}
-		rows = append(rows, []string{"delivery", line})
+		rows = append(rows, []string{"delivery", deliveryLine(d)})
 	}
 	output.Table(w, color, nil, rows)
 }

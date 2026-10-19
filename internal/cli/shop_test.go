@@ -186,3 +186,56 @@ type = "webhook"
 		t.Fatalf("unknown sink exit %d, want 2", code)
 	}
 }
+
+func TestStoreCurrentWithStore(t *testing.T) {
+	e := newEnv(t)
+	e.withStore = true
+	e.login()
+	out, errOut, code := e.run("store", "current")
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	var s struct {
+		ID   string `json:"id"`
+		Name string `json:"name"`
+	}
+	if err := json.Unmarshal([]byte(out), &s); err != nil {
+		t.Fatal(err)
+	}
+	if s.ID != "037" || s.Name != "Salamanca" {
+		t.Fatalf("store = %s", out)
+	}
+}
+
+func TestProductStockPickup(t *testing.T) {
+	e := newEnv(t)
+	e.withStore = true
+	e.login()
+	out, errOut, code := e.run("product", "stock", "81866477")
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	var v struct {
+		Store      *leroymerlin.StoreRef
+		Deliveries []leroymerlin.Delivery
+	}
+	if err := json.Unmarshal([]byte(out), &v); err != nil {
+		t.Fatal(err)
+	}
+	if v.Store == nil || v.Store.ID != "037" || v.Store.Name != "Salamanca" {
+		t.Fatalf("store = %+v", v.Store)
+	}
+	var pickup *leroymerlin.Delivery
+	for i := range v.Deliveries {
+		if v.Deliveries[i].Type == "storeDelivery" {
+			pickup = &v.Deliveries[i]
+		}
+	}
+	if pickup == nil || pickup.Stock != 308 || pickup.Status != "ONORDER" {
+		t.Fatalf("deliveries = %+v", v.Deliveries)
+	}
+	pretty, _, code := e.run("product", "stock", "81866477", "--format", "pretty")
+	if code != 0 || !strings.Contains(pretty, "store pickup, 2 opening days, on order, 308 available, free") {
+		t.Fatalf("pretty stock = %s", pretty)
+	}
+}

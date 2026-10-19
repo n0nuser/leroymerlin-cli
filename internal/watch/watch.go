@@ -40,14 +40,15 @@ type Result struct {
 
 // productEvent is the payload an event carries.
 type productEvent struct {
-	Ref       string             `json:"ref"`
-	Name      string             `json:"name,omitempty"`
-	URL       string             `json:"url,omitempty"`
-	Price     *leroymerlin.Money `json:"price,omitempty"`
-	Available bool               `json:"available"`
-	InStock   bool               `json:"in_stock"`
-	Store     string             `json:"store,omitempty"`
-	Stock     int                `json:"stock,omitempty"`
+	Ref         string             `json:"ref"`
+	Name        string             `json:"name,omitempty"`
+	URL         string             `json:"url,omitempty"`
+	Price       *leroymerlin.Money `json:"price,omitempty"`
+	Available   bool               `json:"available"`
+	InStock     bool               `json:"in_stock"`
+	Store       string             `json:"store,omitempty"`
+	Stock       int                `json:"stock,omitempty"`
+	StockStatus string             `json:"stock_status,omitempty"`
 }
 
 // Check fetches a watch's target, diffs it against the last check and returns
@@ -132,7 +133,7 @@ func productSeen(p *leroymerlin.ProductPage, snap []byte) store.Seen {
 	}
 	for _, d := range p.Deliveries {
 		if d.Type != "homeDelivery" {
-			k.Stock = d.Stock
+			k.Stock, k.StockStatus = d.Stock, d.Status
 		}
 	}
 	return k
@@ -162,8 +163,8 @@ func diff(w store.Watch, old, now map[string]store.Seen, order []string) Result 
 				add("product.price_changed", k, map[string]any{"from": before.Price, "to": k.Price})
 			}
 			switch {
-			case k.Stock != before.Stock && (k.Store != "" || before.Store != ""):
-				add("product.stock_changed", k, map[string]any{"from": before.Stock, "to": k.Stock})
+			case (k.Stock != before.Stock || k.StockStatus != before.StockStatus) && (k.Store != "" || before.Store != ""):
+				add("product.stock_changed", k, map[string]any{"from": before.Stock, "to": k.Stock, "from_status": before.StockStatus, "to_status": k.StockStatus})
 			case k.Available && !before.Available:
 				add("product.in_stock", k, nil)
 			case !k.Available && before.Available:
@@ -183,7 +184,7 @@ func diff(w store.Watch, old, now map[string]store.Seen, order []string) Result 
 }
 
 func eventPayload(k store.Seen) productEvent {
-	ev := productEvent{Ref: k.Ref, Name: k.Name, URL: k.URL, Available: k.Available, InStock: k.InStock, Store: k.Store, Stock: k.Stock}
+	ev := productEvent{Ref: k.Ref, Name: k.Name, URL: k.URL, Available: k.Available, InStock: k.InStock, Store: k.Store, Stock: k.Stock, StockStatus: k.StockStatus}
 	if k.Price > 0 {
 		cur := k.Currency
 		if cur == "" {
