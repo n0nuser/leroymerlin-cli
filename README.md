@@ -15,6 +15,10 @@
 
 [documentation](https://n0nuser.github.io/leroymerlin-cli/docs/) | [github](https://github.com/n0nuser/leroymerlin-cli)
 
+<p align="center">
+  <img src="images/demos/search.gif" width="640" alt="leroymerlin search and stock demo">
+</p>
+
 ## for AI agents
 
 register the read commands as an MCP server in your harness:
