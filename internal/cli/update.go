@@ -24,7 +24,7 @@ func (a *App) updateCmd() *cobra.Command {
 after verifying the archive against the release's checksums.txt. --check only
 reports; --yes skips the prompt. Development builds (go install from a
 branch, local builds) are never replaced: reinstall with go install instead.`,
-		Args: cobra.NoArgs,
+		Args: noArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if !updater.Stable(a.Version) {
 				return output.Usagef("this is a development build (%s); install a release or run `go install github.com/n0nuser/leroymerlin-cli/cmd/leroymerlin@latest`", a.Version)

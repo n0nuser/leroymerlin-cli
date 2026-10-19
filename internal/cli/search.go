@@ -3,7 +3,9 @@ package cli
 import (
 	"fmt"
 	"io"
+	"math"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -50,6 +52,7 @@ func searchQuery(keywords []string, f searchFlags) (leroymerlin.SearchQuery, err
 		Keywords: strings.Join(keywords, " "), Category: strings.Trim(f.category, "/"),
 		Brands: f.brands, MinPrice: f.minPrice, MaxPrice: f.maxPrice,
 		SoldByLeroyMerlin: f.soldByLM, Sort: f.sort, Page: f.page,
+		InStock: f.inStock, Limit: f.limit,
 	}
 	switch {
 	case q.Keywords == "" && q.Category == "":
@@ -66,18 +69,33 @@ func searchQuery(keywords []string, f searchFlags) (leroymerlin.SearchQuery, err
 	if f.page < 1 {
 		return q, output.Usagef("--page starts at 1")
 	}
-	for _, v := range []struct{ name, val string }{{"--min-price", q.MinPrice}, {"--max-price", q.MaxPrice}} {
-		if v.val == "" {
-			continue
-		}
-		if strings.HasPrefix(v.val, "-") || strings.Count(v.val, ".") > 1 {
-			return q, output.Usagef("%s %q is not a price", v.name, v.val)
-		}
+	if f.limit < 0 {
+		return q, output.Usagef("--limit cannot be negative")
 	}
-	if q.MinPrice != "" && q.MaxPrice != "" && q.MinPrice > q.MaxPrice {
+	lo, err := price("--min-price", q.MinPrice)
+	if err != nil {
+		return q, err
+	}
+	hi, err := price("--max-price", q.MaxPrice)
+	if err != nil {
+		return q, err
+	}
+	if q.MinPrice != "" && q.MaxPrice != "" && lo > hi {
 		return q, output.Usagef("--min-price is above --max-price")
 	}
 	return q, nil
+}
+
+// price validates a euro amount typed as a flag. Empty means "not given".
+func price(flag, v string) (float64, error) {
+	if v == "" {
+		return 0, nil
+	}
+	n, err := strconv.ParseFloat(v, 64)
+	if err != nil || math.IsNaN(n) || math.IsInf(n, 0) || n < 0 {
+		return 0, output.Usagef("%s %q is not a price", flag, v)
+	}
+	return n, nil
 }
 
 // searchResultView is what `search` prints. Products may be trimmed by --limit
@@ -140,18 +158,6 @@ Examples:
 				return err
 			}
 			res.Category = q.Category
-			if f.inStock {
-				kept := res.Products[:0]
-				for _, p := range res.Products {
-					if p.Available {
-						kept = append(kept, p)
-					}
-				}
-				res.Products = kept
-			}
-			if f.limit > 0 && len(res.Products) > f.limit {
-				res.Products = res.Products[:f.limit]
-			}
 			return a.Printer.Print(searchResultView{SearchResult: *res, Shown: len(res.Products)})
 		},
 	}

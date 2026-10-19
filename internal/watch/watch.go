@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/n0nuser/leroymerlin-cli/internal/leroymerlin"
@@ -38,19 +39,6 @@ type Result struct {
 	Events  []store.Event
 }
 
-// productEvent is the payload an event carries.
-type productEvent struct {
-	Ref         string             `json:"ref"`
-	Name        string             `json:"name,omitempty"`
-	URL         string             `json:"url,omitempty"`
-	Price       *leroymerlin.Money `json:"price,omitempty"`
-	Available   bool               `json:"available"`
-	InStock     bool               `json:"in_stock"`
-	Store       string             `json:"store,omitempty"`
-	Stock       int                `json:"stock,omitempty"`
-	StockStatus string             `json:"stock_status,omitempty"`
-}
-
 // Check fetches a watch's target, diffs it against the last check and returns
 // everything the store should commit. A product that was not in the previous
 // state is reported as new; a baseline passes an empty state and ignores the
@@ -74,19 +62,17 @@ func Check(ctx context.Context, f Fetcher, w store.Watch, seen map[string]store.
 }
 
 func checkSearch(ctx context.Context, f Fetcher, w store.Watch, t SearchTarget, seen map[string]store.Seen) (Result, error) {
-	pages := t.Query
-	pages.Page = 1
+	q := t.Query
 	found := map[string]store.Seen{}
 	order := []string{}
 	for page := 1; page <= max(w.Pages, 1); page++ {
-		pages.Page = page
-		res, err := f.Search(ctx, pages)
+		q.Page = page
+		res, err := f.Search(ctx, q)
 		if err != nil {
 			return Result{}, err
 		}
 		for _, p := range res.Products {
-			snap, _ := json.Marshal(p)
-			k := seenOf(p, snap)
+			k := seenOf(p)
 			if _, dup := found[k.Ref]; !dup {
 				order = append(order, k.Ref)
 			}
@@ -104,15 +90,14 @@ func checkProduct(ctx context.Context, f Fetcher, w store.Watch, t ProductTarget
 	if err != nil {
 		return Result{}, err
 	}
-	snap, _ := json.Marshal(p)
-	found := map[string]store.Seen{p.Ref: productSeen(p, snap)}
+	found := map[string]store.Seen{p.Ref: productSeen(p)}
 	return diff(w, seen, found, []string{p.Ref}), nil
 }
 
-func seenOf(p leroymerlin.Product, snap []byte) store.Seen {
+func seenOf(p leroymerlin.Product) store.Seen {
 	k := store.Seen{
 		Ref: p.Ref, Name: p.Name, URL: p.URL,
-		Available: p.Available, InStock: p.Available, Snapshot: snap,
+		Available: p.Available, InStock: p.Available,
 	}
 	if p.Price != nil {
 		k.Price, k.Currency = p.Price.Amount, p.Price.Currency
@@ -120,10 +105,10 @@ func seenOf(p leroymerlin.Product, snap []byte) store.Seen {
 	return k
 }
 
-func productSeen(p *leroymerlin.ProductPage, snap []byte) store.Seen {
+func productSeen(p *leroymerlin.ProductPage) store.Seen {
 	k := store.Seen{
 		Ref: p.Ref, Name: p.Name, URL: p.URL,
-		Available: p.Available, InStock: p.InStock, Snapshot: snap,
+		Available: p.Available, InStock: p.InStock,
 	}
 	if p.Price != nil {
 		k.Price, k.Currency = p.Price.Amount, p.Price.Currency
@@ -172,25 +157,31 @@ func diff(w store.Watch, old, now map[string]store.Seen, order []string) Result 
 			}
 		}
 	}
-	for ref, k := range old {
+	removed := make([]string, 0, len(old))
+	for ref := range old {
 		if _, still := now[ref]; !still {
-			res.Removed = append(res.Removed, ref)
-			ev := store.Event{Type: "product.removed", Watch: w.Name, Profile: w.Profile, At: time.Now().UTC()}
-			ev.Product, _ = json.Marshal(eventPayload(k))
-			res.Events = append(res.Events, ev)
+			removed = append(removed, ref)
 		}
+	}
+	sort.Strings(removed)
+	for _, ref := range removed {
+		k := old[ref]
+		res.Removed = append(res.Removed, ref)
+		ev := store.Event{Type: "product.removed", Watch: w.Name, Profile: w.Profile, At: time.Now().UTC()}
+		ev.Product, _ = json.Marshal(eventPayload(k))
+		res.Events = append(res.Events, ev)
 	}
 	return res
 }
 
-func eventPayload(k store.Seen) productEvent {
-	ev := productEvent{Ref: k.Ref, Name: k.Name, URL: k.URL, Available: k.Available, InStock: k.InStock, Store: k.Store, Stock: k.Stock, StockStatus: k.StockStatus}
+func eventPayload(k store.Seen) store.ProductPayload {
+	ev := store.ProductPayload{Ref: k.Ref, Name: k.Name, URL: k.URL, Available: k.Available, InStock: k.InStock, Store: k.Store, Stock: k.Stock, StockStatus: k.StockStatus}
 	if k.Price > 0 {
 		cur := k.Currency
 		if cur == "" {
 			cur = "EUR"
 		}
-		ev.Price = &leroymerlin.Money{Amount: k.Price, Currency: cur}
+		ev.Price = &store.Price{Amount: k.Price, Currency: cur}
 	}
 	return ev
 }

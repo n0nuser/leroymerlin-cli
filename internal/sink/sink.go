@@ -129,20 +129,9 @@ func token(path string) (string, error) {
 	return strings.TrimSpace(string(raw)), nil
 }
 
-// eventProduct is the product payload an event carries.
-type eventProduct struct {
-	Name  string `json:"name"`
-	Ref   string `json:"ref"`
-	URL   string `json:"url"`
-	Price *struct {
-		Amount   float64 `json:"amount"`
-		Currency string  `json:"currency"`
-	} `json:"price"`
-}
-
 // Summary is the one-line human text used by ntfy and chat webhooks.
 func Summary(ev store.Event) (title, body, link string) {
-	var p eventProduct
+	var p store.ProductPayload
 	_ = json.Unmarshal(ev.Product, &p)
 	var change struct {
 		From any `json:"from"`
@@ -179,7 +168,7 @@ func Summary(ev store.Event) (title, body, link string) {
 	return title, body, p.URL
 }
 
-func price(p eventProduct) string {
+func price(p store.ProductPayload) string {
 	if p.Price == nil {
 		return ""
 	}

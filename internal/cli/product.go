@@ -128,7 +128,7 @@ Without one, the site reports online availability and home delivery only.`,
 		&cobra.Command{
 			Use:   "show REF",
 			Short: "Read one product",
-			Args:  cobra.ExactArgs(1),
+			Args:  exactArgs(1),
 			RunE: func(cmd *cobra.Command, args []string) error {
 				return a.showProduct(cmd, args[0])
 			},
@@ -136,7 +136,7 @@ Without one, the site reports online availability and home delivery only.`,
 		&cobra.Command{
 			Use:   "stock REF",
 			Short: "Whether the product is available, and where",
-			Args:  cobra.ExactArgs(1),
+			Args:  exactArgs(1),
 			RunE: func(cmd *cobra.Command, args []string) error {
 				p, err := a.loadProduct(cmd, args[0])
 				if err != nil {

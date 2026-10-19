@@ -35,13 +35,13 @@ Examples:
   leroymerlin config get default_profile`,
 	}
 	cmd.AddCommand(
-		&cobra.Command{Use: "path", Short: "Print where config, sessions and state live", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, args []string) error {
+		&cobra.Command{Use: "path", Short: "Print where config, sessions and state live", Args: noArgs, RunE: func(cmd *cobra.Command, args []string) error {
 			return a.Printer.Print(map[string]string{"config": a.Paths.ConfigFile, "sessions": a.Paths.SessionsDir, "state": a.Paths.StateDB, "chrome": a.Paths.ChromeDir})
 		}},
-		&cobra.Command{Use: "list", Short: "Print the whole config", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, args []string) error {
+		&cobra.Command{Use: "list", Short: "Print the whole config", Args: noArgs, RunE: func(cmd *cobra.Command, args []string) error {
 			return a.Printer.Print(a.Cfg)
 		}},
-		&cobra.Command{Use: "get KEY", Short: "Print one key", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
+		&cobra.Command{Use: "get KEY", Short: "Print one key", Args: exactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
 			doc, err := a.configDoc()
 			if err != nil {
 				return err
@@ -58,7 +58,7 @@ Examples:
 			}
 			return a.Printer.Print(cur)
 		}},
-		&cobra.Command{Use: "set KEY VALUE", Short: "Set one key", Args: cobra.ExactArgs(2), RunE: func(cmd *cobra.Command, args []string) error {
+		&cobra.Command{Use: "set KEY VALUE", Short: "Set one key", Args: exactArgs(2), RunE: func(cmd *cobra.Command, args []string) error {
 			doc, err := a.configDoc()
 			if err != nil {
 				return err
@@ -152,7 +152,7 @@ sitemaps, and one request to the storefront with the session.
 The last check tells a working session from one the bot protection
 challenges. Exit 0 when all pass, 3 when there is no session, 5 when the
 storefront challenges the session, 1 for anything else.`,
-		Args: cobra.NoArgs,
+		Args: noArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 			rep := doctorReport{OK: true, Profile: a.Profile}
@@ -165,7 +165,7 @@ storefront challenges the session, 1 for anything else.`,
 			add("config", true, a.Paths.ConfigFile, 0)
 			switch s := a.Session; {
 			case s == nil:
-				add("session", false, fmt.Sprintf("profile %q has none; run `leroymerlin auth login --cookies FILE`", a.Profile), leroymerlin.KindAuth)
+				add("session", false, fmt.Sprintf("profile %q has none; run `leroymerlin auth harvest` or `leroymerlin auth login --cookies FILE`", a.Profile), leroymerlin.KindAuth)
 			default:
 				sum := s.Summarize()
 				add("session", true, fmt.Sprintf("%s, %d cookies (%s)", s.Source, sum.Cookies, s.Path), 0)
@@ -226,14 +226,14 @@ var skillFiles embed.FS
 func (a *App) skillsCmd() *cobra.Command {
 	cmd := &cobra.Command{Use: "skills", Short: "Embedded usage docs for agents and humans"}
 	cmd.AddCommand(
-		&cobra.Command{Use: "list", Short: "List the docs", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, args []string) error {
+		&cobra.Command{Use: "list", Short: "List the docs", Args: noArgs, RunE: func(cmd *cobra.Command, args []string) error {
 			names, err := skillNames()
 			if err != nil {
 				return err
 			}
 			return a.Printer.Print(names)
 		}},
-		&cobra.Command{Use: "get NAME", Short: "Print one doc as markdown", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
+		&cobra.Command{Use: "get NAME", Short: "Print one doc as markdown", Args: exactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
 			raw, err := skillFiles.ReadFile("skills/" + args[0] + ".md")
 			if err != nil {
 				names, _ := skillNames()

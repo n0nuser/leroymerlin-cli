@@ -210,7 +210,7 @@ func (a *App) setup(cmd *cobra.Command) error {
 func (a *App) requireSession() error {
 	if a.Session == nil {
 		return &leroymerlin.Error{Kind: leroymerlin.KindAuth,
-			Msg: fmt.Sprintf("profile %q has no session. Export leroymerlin.es cookies from your browser and run `leroymerlin auth login --cookies FILE`", a.Profile)}
+			Msg: fmt.Sprintf("profile %q has no session. Run `leroymerlin auth harvest`, or export leroymerlin.es cookies and run `leroymerlin auth login --cookies FILE`", a.Profile)}
 	}
 	return nil
 }

@@ -6,7 +6,7 @@ An unofficial, read-only terminal client for leroymerlin.es. It covers stores, c
 
 - Read `docs/cli-spec.md` (the contract) and `docs/leroymerlin-api-discovery.md` (what the site does) before changing behaviour. Update them in the same change.
 - `go build ./... && go test ./... && go vet ./...` must be clean, and so must `make check` (gofmt and staticcheck too). After touching a command's help or flags, run `make docs`. CI fails on a stale reference.
-- Layering: `cli` calls into `leroymerlin` (network, parsing) and `config` (disk). `leroymerlin` never touches the disk; `config` never touches the network.
+- Layering: `cli` orchestrates. `leroymerlin` is network and parsing; `config` is disk; `store` is the local sqlite state; `watch` is the diff between two checks; `sink` delivers events; `harvest` owns the real-Chrome profile copy and CDP session. `leroymerlin` never touches the disk, `config` never touches the network, and `store` never calls the site.
 - Every parser is pinned to a real capture in `internal/leroymerlin/testdata/` with a round-trip test. Hand-written fixtures say `synthetic` in their file name. Every bug fix comes with a regression test whose comment names the bug.
 - Tests never talk to leroymerlin.es. Use `httptest` and `LEROYMERLIN_BASE_URL`.
 - Live captures (HAR, cookie exports) are secrets. Keep them outside the repo; `.gitignore` blocks `*.har` and `*cookies*.json`. Strip cookies, `Set-Cookie` headers and context ids before anything becomes a fixture.

@@ -47,7 +47,7 @@ Examples:
   leroymerlin store list --format pretty
   leroymerlin store list --query madrid
   leroymerlin store list --format jsonl | jq -r .slug`,
-		Args: cobra.NoArgs,
+		Args: noArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			stores, err := a.Client.Stores(cmd.Context())
 			if err != nil {
@@ -77,7 +77,7 @@ Examples:
 Stock is always for that store. Without a selection the site reports online
 availability only; choose a store in the browser the session came from and
 import the cookies again.`,
-		Args: cobra.NoArgs,
+		Args: noArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := a.requireSession(); err != nil {
 				return err
@@ -121,7 +121,7 @@ Examples:
   leroymerlin category list --depth 1 --format pretty
   leroymerlin category list --parent construccion --depth 2
   leroymerlin category list --query cemento`,
-		Args: cobra.NoArgs,
+		Args: noArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cats, err := a.Client.Categories(cmd.Context())
 			if err != nil {

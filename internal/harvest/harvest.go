@@ -152,16 +152,10 @@ func runCopied(ctx context.Context, o Options, root string) (res Result, err err
 	if err != nil {
 		return Result{}, fmt.Errorf("finding a free DevTools port: %w", err)
 	}
-	opts := append(slices.Clone(chromedp.DefaultExecAllocatorOptions[:]),
-		// A fixed debugging port means chromedp talks over a websocket, so
-		// the allocator needs the remote dialer.
+	// A fixed debugging port means chromedp talks over a websocket, so the
+	// allocator needs the remote dialer.
+	opts := append(launchOptions(path, temp),
 		remote.WebSocket,
-		// Headed on purpose: DataDome shows a captcha a person has to clear.
-		// VisibleWindow drops --headless and the "controlled by software"
-		// infobar; it needs a display.
-		chromedp.VisibleWindow,
-		chromedp.ExecPath(path),
-		chromedp.UserDataDir(temp),
 		chromedp.Flag("remote-debugging-port", strconv.Itoa(port)),
 		chromedp.Flag("remote-debugging-address", "127.0.0.1"),
 	)
@@ -177,14 +171,22 @@ func runFresh(ctx context.Context, o Options) (Result, error) {
 	if err != nil {
 		return Result{}, err
 	}
-	opts := append(slices.Clone(chromedp.DefaultExecAllocatorOptions[:]),
-		chromedp.VisibleWindow,
-		chromedp.ExecPath(path),
-		chromedp.UserDataDir(o.UserDataDir),
-	)
-	allocCtx, cancel := chromedp.NewExecAllocator(ctx, opts...)
+	allocCtx, cancel := chromedp.NewExecAllocator(ctx, launchOptions(path, o.UserDataDir)...)
 	defer cancel()
 	return read(allocCtx, o, "fresh", "")
+}
+
+// launchOptions is the headed browser every launched harvest uses. The copied
+// path adds its websocket dialer and fixed port flags on top.
+func launchOptions(path, profileDir string) []chromedp.ExecAllocatorOption {
+	return append(slices.Clone(chromedp.DefaultExecAllocatorOptions[:]),
+		// Headed on purpose: DataDome shows a captcha a person has to clear.
+		// VisibleWindow drops --headless and the "controlled by software"
+		// infobar; it needs a display.
+		chromedp.VisibleWindow,
+		chromedp.ExecPath(path),
+		chromedp.UserDataDir(profileDir),
+	)
 }
 
 func waitClear(ctx context.Context, browserCtx context.Context, timeout time.Duration, copied bool) error {

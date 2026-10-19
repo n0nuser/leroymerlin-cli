@@ -72,6 +72,11 @@ type SearchQuery struct {
 	SoldByLeroyMerlin bool
 	Sort              string
 	Page              int
+	// InStock and Limit are local: the page is fetched whole, then filtered.
+	// Keeping them here means `search` and a watched search apply them the
+	// same way.
+	InStock bool
+	Limit   int
 }
 
 // SortCodes are the orders the storefront understands, from the result page.
@@ -159,14 +164,14 @@ type guidanceData struct {
 
 // cardProduct is one entry of a cdl_products_list tracking island.
 type cardProduct struct {
-	Brand     string `json:"brand"`
-	SKU       string `json:"sku"`
-	ID        string `json:"identifier"`
-	Name      string `json:"name"`
-	URL       string `json:"url"`
-	Position  int    `json:"position"`
-	Rating    *float64
-	Sponsored bool `json:"product_is_sponsored"`
+	Brand     string   `json:"brand"`
+	SKU       string   `json:"sku"`
+	ID        string   `json:"identifier"`
+	Name      string   `json:"name"`
+	URL       string   `json:"url"`
+	Position  int      `json:"position"`
+	Rating    *float64 `json:"rating"`
+	Sponsored bool     `json:"product_is_sponsored"`
 	Offer     *struct {
 		AddToCart bool    `json:"add_to_cart_availability"`
 		PriceATI  float64 `json:"unitprice_ati"`
@@ -278,13 +283,30 @@ func absoluteURL(p string) string {
 	return DefaultBaseURL + p
 }
 
-// Search fetches and parses one result page.
+// Search fetches and parses one result page, then applies the local filters
+// (in-stock, limit) the query carries.
 func (c *Client) Search(ctx context.Context, q SearchQuery) (*SearchResult, error) {
 	p, err := c.GetHTML(ctx, q.Path())
 	if err != nil {
 		return nil, err
 	}
-	return ParseSearch(p.Body)
+	res, err := ParseSearch(p.Body)
+	if err != nil {
+		return nil, err
+	}
+	if q.InStock {
+		kept := res.Products[:0]
+		for _, p := range res.Products {
+			if p.Available {
+				kept = append(kept, p)
+			}
+		}
+		res.Products = kept
+	}
+	if q.Limit > 0 && len(res.Products) > q.Limit {
+		res.Products = res.Products[:q.Limit]
+	}
+	return res, nil
 }
 
 // Product reads one product from a reference or URL. A bare reference needs

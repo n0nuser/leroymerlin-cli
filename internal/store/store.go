@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -24,6 +25,9 @@ const (
 // ErrExists is returned when a watch name is taken.
 var ErrExists = errors.New("watch exists")
 
+// ErrNotFound is returned when a watch does not exist.
+var ErrNotFound = errors.New("watch not found")
+
 // Watch is the persisted form. Target is kind-specific JSON: search params or
 // a product reference.
 type Watch struct {
@@ -37,27 +41,44 @@ type Watch struct {
 	Pages       int             `json:"pages"`
 	CreatedAt   time.Time       `json:"created_at"`
 	LastCheckAt time.Time       `json:"last_check_at,omitempty"`
-	Baselined   bool            `json:"baselined"`
 }
 
 // Seen is the last known state of one product under one watch.
 type Seen struct {
-	Ref         string          `json:"ref"`
-	Name        string          `json:"name,omitempty"`
-	URL         string          `json:"url,omitempty"`
-	Price       float64         `json:"price,omitempty"`
-	Currency    string          `json:"currency,omitempty"`
-	Available   bool            `json:"available"`
-	InStock     bool            `json:"in_stock"`
-	Store       string          `json:"store,omitempty"`
-	Stock       int             `json:"stock,omitempty"`
-	StockStatus string          `json:"stock_status,omitempty"`
-	Snapshot    json.RawMessage `json:"-"`
+	Ref         string  `json:"ref"`
+	Name        string  `json:"name,omitempty"`
+	URL         string  `json:"url,omitempty"`
+	Price       float64 `json:"price,omitempty"`
+	Currency    string  `json:"currency,omitempty"`
+	Available   bool    `json:"available"`
+	InStock     bool    `json:"in_stock"`
+	Store       string  `json:"store,omitempty"`
+	Stock       int     `json:"stock,omitempty"`
+	StockStatus string  `json:"stock_status,omitempty"`
+}
+
+// Price is the amount an event carries.
+type Price struct {
+	Amount   float64 `json:"amount"`
+	Currency string  `json:"currency"`
+}
+
+// ProductPayload is the product object inside an event. watch writes it; the
+// CLI and the sinks read it, so the shape has one owner.
+type ProductPayload struct {
+	Ref         string `json:"ref"`
+	Name        string `json:"name,omitempty"`
+	URL         string `json:"url,omitempty"`
+	Price       *Price `json:"price,omitempty"`
+	Available   bool   `json:"available"`
+	InStock     bool   `json:"in_stock"`
+	Store       string `json:"store,omitempty"`
+	Stock       int    `json:"stock,omitempty"`
+	StockStatus string `json:"stock_status,omitempty"`
 }
 
 // Event is one reported change.
 type Event struct {
-	ID      int64           `json:"-"`
 	Type    string          `json:"type"`
 	Watch   string          `json:"watch"`
 	Profile string          `json:"profile"`
@@ -79,8 +100,7 @@ CREATE TABLE IF NOT EXISTS watches (
   interval_sec INTEGER NOT NULL,
   pages INTEGER NOT NULL DEFAULT 1,
   created_at TEXT NOT NULL,
-  last_check_at TEXT,
-  baselined INTEGER NOT NULL DEFAULT 0
+  last_check_at TEXT
 );
 CREATE TABLE IF NOT EXISTS seen (
   watch_id INTEGER NOT NULL REFERENCES watches(id) ON DELETE CASCADE,
@@ -94,7 +114,6 @@ CREATE TABLE IF NOT EXISTS seen (
   store_name TEXT NOT NULL DEFAULT '',
   stock INTEGER NOT NULL DEFAULT 0,
   stock_status TEXT NOT NULL DEFAULT '',
-  snapshot TEXT NOT NULL DEFAULT '',
   first_seen TEXT NOT NULL,
   last_seen TEXT NOT NULL,
   PRIMARY KEY (watch_id, ref)
@@ -165,7 +184,7 @@ func (s *Store) AddWatch(ctx context.Context, w Watch) (Watch, error) {
 
 // Watches lists watches; an empty profile lists every profile's.
 func (s *Store) Watches(ctx context.Context, profile string) ([]Watch, error) {
-	q := `SELECT id, name, profile, kind, target, sinks, interval_sec, pages, created_at, last_check_at, baselined FROM watches`
+	q := `SELECT id, name, profile, kind, target, sinks, interval_sec, pages, created_at, last_check_at FROM watches`
 	var args []any
 	if profile != "" {
 		q += ` WHERE profile = ?`
@@ -190,7 +209,7 @@ func (s *Store) Watches(ctx context.Context, profile string) ([]Watch, error) {
 
 // WatchByName loads one watch.
 func (s *Store) WatchByName(ctx context.Context, name string) (Watch, error) {
-	row := s.db.QueryRowContext(ctx, `SELECT id, name, profile, kind, target, sinks, interval_sec, pages, created_at, last_check_at, baselined FROM watches WHERE name = ?`, name)
+	row := s.db.QueryRowContext(ctx, `SELECT id, name, profile, kind, target, sinks, interval_sec, pages, created_at, last_check_at FROM watches WHERE name = ?`, name)
 	return scanWatch(row)
 }
 
@@ -206,7 +225,7 @@ func (s *Store) RemoveWatch(ctx context.Context, name string) (bool, error) {
 
 // Seen is the last known state of everything under one watch.
 func (s *Store) Seen(ctx context.Context, watchID int64) (map[string]Seen, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT ref, name, url, price, currency, available, in_stock, store_name, stock, stock_status, snapshot FROM seen WHERE watch_id = ?`, watchID)
+	rows, err := s.db.QueryContext(ctx, `SELECT ref, name, url, price, currency, available, in_stock, store_name, stock, stock_status FROM seen WHERE watch_id = ?`, watchID)
 	if err != nil {
 		return nil, err
 	}
@@ -214,11 +233,9 @@ func (s *Store) Seen(ctx context.Context, watchID int64) (map[string]Seen, error
 	out := map[string]Seen{}
 	for rows.Next() {
 		var k Seen
-		var snap string
-		if err := rows.Scan(&k.Ref, &k.Name, &k.URL, &k.Price, &k.Currency, &k.Available, &k.InStock, &k.Store, &k.Stock, &k.StockStatus, &snap); err != nil {
+		if err := rows.Scan(&k.Ref, &k.Name, &k.URL, &k.Price, &k.Currency, &k.Available, &k.InStock, &k.Store, &k.Stock, &k.StockStatus); err != nil {
 			return nil, err
 		}
-		k.Snapshot = json.RawMessage(snap)
 		out[k.Ref] = k
 	}
 	return out, rows.Err()
@@ -234,13 +251,13 @@ func (s *Store) CommitCheck(ctx context.Context, watchID int64, upserts []Seen, 
 	defer tx.Rollback()
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	for _, k := range upserts {
-		if _, err := tx.ExecContext(ctx, `INSERT INTO seen (watch_id, ref, name, url, price, currency, available, in_stock, store_name, stock, stock_status, snapshot, first_seen, last_seen)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		if _, err := tx.ExecContext(ctx, `INSERT INTO seen (watch_id, ref, name, url, price, currency, available, in_stock, store_name, stock, stock_status, first_seen, last_seen)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 			ON CONFLICT(watch_id, ref) DO UPDATE SET name=excluded.name, url=excluded.url, price=excluded.price,
 			  currency=excluded.currency, available=excluded.available, in_stock=excluded.in_stock,
 			  store_name=excluded.store_name, stock=excluded.stock, stock_status=excluded.stock_status,
-			  snapshot=excluded.snapshot, last_seen=excluded.last_seen`,
-			watchID, k.Ref, k.Name, k.URL, k.Price, k.Currency, k.Available, k.InStock, k.Store, k.Stock, k.StockStatus, string(k.Snapshot), now, now); err != nil {
+			  last_seen=excluded.last_seen`,
+			watchID, k.Ref, k.Name, k.URL, k.Price, k.Currency, k.Available, k.InStock, k.Store, k.Stock, k.StockStatus, now, now); err != nil {
 			return err
 		}
 	}
@@ -255,7 +272,7 @@ func (s *Store) CommitCheck(ctx context.Context, watchID int64, upserts []Seen, 
 			return err
 		}
 	}
-	if _, err := tx.ExecContext(ctx, `UPDATE watches SET last_check_at = ?, baselined = 1 WHERE id = ?`, now, watchID); err != nil {
+	if _, err := tx.ExecContext(ctx, `UPDATE watches SET last_check_at = ? WHERE id = ?`, now, watchID); err != nil {
 		return err
 	}
 	return tx.Commit()
@@ -264,7 +281,7 @@ func (s *Store) CommitCheck(ctx context.Context, watchID int64, upserts []Seen, 
 // Events returns stored events, newest last, optionally for one watch name and
 // only after since.
 func (s *Store) Events(ctx context.Context, name string, since time.Time, limit int) ([]Event, error) {
-	q := `SELECT e.id, e.type, w.name, w.profile, e.at, e.product, e.change
+	q := `SELECT e.type, w.name, w.profile, e.at, e.product, e.change
 		FROM events e JOIN watches w ON w.id = e.watch_id`
 	var args []any
 	var where []string
@@ -277,11 +294,12 @@ func (s *Store) Events(ctx context.Context, name string, since time.Time, limit 
 		args = append(args, since.UTC().Format(time.RFC3339Nano))
 	}
 	if len(where) > 0 {
-		q += ` WHERE ` + joinAnd(where)
+		q += ` WHERE ` + strings.Join(where, " AND ")
 	}
 	q += ` ORDER BY e.at DESC, e.id DESC`
 	if limit > 0 {
-		q += fmt.Sprintf(` LIMIT %d`, limit)
+		q += ` LIMIT ?`
+		args = append(args, limit)
 	}
 	rows, err := s.db.QueryContext(ctx, q, args...)
 	if err != nil {
@@ -292,7 +310,7 @@ func (s *Store) Events(ctx context.Context, name string, since time.Time, limit 
 	for rows.Next() {
 		var ev Event
 		var at, product, change string
-		if err := rows.Scan(&ev.ID, &ev.Type, &ev.Watch, &ev.Profile, &at, &product, &change); err != nil {
+		if err := rows.Scan(&ev.Type, &ev.Watch, &ev.Profile, &at, &product, &change); err != nil {
 			return nil, err
 		}
 		ev.At, _ = time.Parse(time.RFC3339Nano, at)
@@ -307,14 +325,6 @@ func (s *Store) Events(ctx context.Context, name string, since time.Time, limit 
 	return out, rows.Err()
 }
 
-func joinAnd(parts []string) string {
-	out := parts[0]
-	for _, p := range parts[1:] {
-		out += " AND " + p
-	}
-	return out
-}
-
 type rowScanner interface{ Scan(dest ...any) error }
 
 func scanWatch(r rowScanner) (Watch, error) {
@@ -322,7 +332,10 @@ func scanWatch(r rowScanner) (Watch, error) {
 	var target, sinks, created string
 	var last sql.NullString
 	var interval int64
-	if err := r.Scan(&w.ID, &w.Name, &w.Profile, &w.Kind, &target, &sinks, &interval, &w.Pages, &created, &last, &w.Baselined); err != nil {
+	if err := r.Scan(&w.ID, &w.Name, &w.Profile, &w.Kind, &target, &sinks, &interval, &w.Pages, &created, &last); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return Watch{}, ErrNotFound
+		}
 		return Watch{}, err
 	}
 	w.Target = json.RawMessage(target)
@@ -336,14 +349,5 @@ func scanWatch(r rowScanner) (Watch, error) {
 }
 
 func isUnique(err error) bool {
-	return err != nil && (contains(err.Error(), "UNIQUE") || contains(err.Error(), "constraint failed"))
-}
-
-func contains(s, sub string) bool {
-	for i := 0; i+len(sub) <= len(s); i++ {
-		if s[i:i+len(sub)] == sub {
-			return true
-		}
-	}
-	return false
+	return err != nil && (strings.Contains(err.Error(), "UNIQUE") || strings.Contains(err.Error(), "constraint failed"))
 }

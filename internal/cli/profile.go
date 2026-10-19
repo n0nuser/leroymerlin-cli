@@ -40,7 +40,7 @@ that session, one profile per store lets you compare stores:
   leroymerlin profile use madrid`,
 	}
 	cmd.AddCommand(
-		&cobra.Command{Use: "list", Short: "List profiles that have a session", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, args []string) error {
+		&cobra.Command{Use: "list", Short: "List profiles that have a session", Args: noArgs, RunE: func(cmd *cobra.Command, args []string) error {
 			names, err := config.Profiles(a.Paths)
 			if err != nil {
 				return err
@@ -52,7 +52,7 @@ that session, one profile per store lets you compare stores:
 			}
 			return a.Printer.Print(out)
 		}},
-		&cobra.Command{Use: "use NAME", Short: "Make NAME the default profile", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
+		&cobra.Command{Use: "use NAME", Short: "Make NAME the default profile", Args: exactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
 			if err := config.ValidProfile(args[0]); err != nil {
 				return output.Usagef("%v", err)
 			}
@@ -64,7 +64,7 @@ that session, one profile per store lets you compare stores:
 		}},
 	)
 	var yes bool
-	rm := &cobra.Command{Use: "remove NAME", Short: "Delete a profile's session", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
+	rm := &cobra.Command{Use: "remove NAME", Short: "Delete a profile's session", Args: exactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
 		if err := a.confirm(yes, "Delete the session of profile "+args[0]+"?"); err != nil {
 			return err
 		}

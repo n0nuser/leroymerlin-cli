@@ -99,7 +99,7 @@ completion bash|zsh|fish|powershell
   - A watch is baselined when it is created: the first check reports only changes. `--emit-initial` reports the current products as `product.new` instead.
   - The interval defaults to `watch.interval` from config, then 5m; the floor is 30s.
 - **`watch list [--all-profiles]`**, **`watch remove NAME [--yes]`**.
-- **`watch check [NAME] [--all]`** fetches each watch once, prints its events and commits the new state. **`watch run [NAME] [--all]`** repeats until interrupted.
+- **`watch check [NAME] [--all]`** fetches each watch once, prints its events and commits the new state. **`watch run [NAME] [--all]`** repeats until interrupted; the loop wakes at the shortest interval among the selected watches.
 - **`watch events [NAME] [--since 24h] [--limit N]`** reads stored events.
 - **Event types.** `product.new`, `product.price_changed` (`{from,to}`), `product.in_stock`, `product.out_of_stock`, `product.stock_changed` (`{from,to,from_status,to_status}`, when a store reports a count or status), `product.removed`.
 - **Event shape.** `{type,watch,profile,at,product:{ref,name,url,price,available,in_stock,store,stock},change}`.
@@ -112,7 +112,7 @@ Prints the store selected in the session (`{id,name}`). Without one it exits 4 a
 
 ### doctor
 
-`doctor` runs five checks: config, session, datadome cookie, sitemaps, then one request to `/` with the session.
+`doctor` runs six checks: config, session, datadome cookie, user agent, sitemaps, then one request to `/` with the session.
 
 - **Output:** `{ok,profile,session_valid,challenged,checks:[{name,ok,detail}]}`.
 - **Exit codes:** 0 when every check passes, 3 when there is no session, 5 when the storefront challenges the session, otherwise 1.
@@ -204,7 +204,7 @@ Checks the latest stable GitHub release, verifies the archive's SHA-256 against 
 
 `config.toml` keys: `default_profile`, `watch.interval`, and one `[sinks.NAME]` table per sink (`type`, plus `url`/`topic`/`token_file` or `command`). Unknown keys are errors.
 
-Env: `LEROYMERLIN_PROFILE`, `LEROYMERLIN_CONFIG`, `LEROYMERLIN_COOKIEJAR`, `LEROYMERLIN_ERROR_FORMAT`, `LEROYMERLIN_BASE_URL`, `LEROYMERLIN_NO_UPDATE_CHECK`, `NO_COLOR`. Precedence: flags > env > config.
+Env: `LEROYMERLIN_PROFILE`, `LEROYMERLIN_CONFIG`, `LEROYMERLIN_COOKIEJAR`, `LEROYMERLIN_ERROR_FORMAT`, `LEROYMERLIN_BASE_URL`, `LEROYMERLIN_NO_UPDATE_CHECK`, `LEROYMERLIN_CHROME_URL`, `LEROYMERLIN_CHROME`, `LEROYMERLIN_CHROME_PROFILE`, `NO_COLOR`. Precedence: flags > env > config.
 
 ## 11. Safety
 
@@ -227,6 +227,7 @@ internal/cli/          one file per noun; skills/ holds embedded agent docs
 internal/leroymerlin/  client: transport, session, sitemaps, page parsers; testdata/
 internal/config/       paths, config.toml, session files
 internal/output/       json/jsonl/pretty, error envelope, exit codes
+internal/harvest/      real-Chrome session harvest over CDP
 internal/store/        sqlite state: watches, seen products, events
 internal/watch/        diff logic between two checks
 internal/sink/         ntfy, webhook and exec delivery
