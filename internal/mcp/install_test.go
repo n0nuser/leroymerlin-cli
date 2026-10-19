@@ -85,3 +85,109 @@ func TestInstallJSONRefusesAMalformedEntry(t *testing.T) {
 		t.Fatalf("file changed:\n%s", raw)
 	}
 }
+
+func TestInstallHarnessesAndErrors(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("CLAUDE_CONFIG_DIR", "")
+	t.Setenv("CODEX_HOME", "")
+	if _, err := Install("nope", "lm", []string{"mcp"}); err == nil {
+		t.Fatal("an unknown harness was accepted")
+	}
+
+	ch, err := Install("claude-code", "/bin/lm", []string{"mcp"})
+	if err != nil || ch.Action != "added" || ch.Path != filepath.Join(home, ".claude.json") {
+		t.Fatalf("claude-code: %+v %v", ch, err)
+	}
+	if ch, err := Install("cursor", "/bin/lm", []string{"mcp"}); err != nil || ch.Action != "added" {
+		t.Fatalf("cursor: %+v %v", ch, err)
+	}
+	if ch, err := Install("codex", "/bin/lm", []string{"mcp"}); err != nil || ch.Action != "added" {
+		t.Fatalf("codex: %+v %v", ch, err)
+	}
+
+	// The env overrides the config directory.
+	claudeDir := t.TempDir()
+	t.Setenv("CLAUDE_CONFIG_DIR", claudeDir)
+	ch, err = Install("claude-code", "/bin/lm", []string{"mcp"})
+	if err != nil || ch.Path != filepath.Join(claudeDir, ".claude.json") {
+		t.Fatalf("CLAUDE_CONFIG_DIR: %+v %v", ch, err)
+	}
+	codexDir := t.TempDir()
+	t.Setenv("CODEX_HOME", codexDir)
+	ch, err = Install("codex", "/bin/lm", []string{"mcp"})
+	if err != nil || ch.Path != filepath.Join(codexDir, "config.toml") {
+		t.Fatalf("CODEX_HOME: %+v %v", ch, err)
+	}
+}
+
+func TestInstallJSONCases(t *testing.T) {
+	dir := t.TempDir()
+	// Invalid JSON is left alone.
+	bad := filepath.Join(dir, "bad.json")
+	os.WriteFile(bad, []byte("{"), 0o600)
+	if _, err := installJSON(bad, "lm", nil); err == nil {
+		t.Fatal("invalid json was accepted")
+	}
+	// mcpServers must be an object.
+	notObject := filepath.Join(dir, "servers.json")
+	os.WriteFile(notObject, []byte(`{"mcpServers":[]}`), 0o600)
+	if _, err := installJSON(notObject, "lm", nil); err == nil {
+		t.Fatal("a non-object mcpServers was accepted")
+	}
+	// A fresh file is created with the entry.
+	fresh := filepath.Join(dir, "fresh.json")
+	act, err := installJSON(fresh, "lm", []string{"mcp"})
+	if err != nil || act != "added" {
+		t.Fatalf("fresh: %s %v", act, err)
+	}
+	raw, _ := os.ReadFile(fresh)
+	if !strings.Contains(string(raw), `"mcpServers"`) || !strings.Contains(string(raw), `"leroymerlin"`) {
+		t.Fatalf("fresh file: %s", raw)
+	}
+	// An existing mode is kept.
+	mode := filepath.Join(dir, "mode.json")
+	os.WriteFile(mode, []byte("{}"), 0o644)
+	if _, err := installJSON(mode, "lm", nil); err != nil {
+		t.Fatal(err)
+	}
+	if fi, _ := os.Stat(mode); fi.Mode().Perm() != 0o644 {
+		t.Fatalf("mode changed to %v", fi.Mode().Perm())
+	}
+}
+
+func TestInstallTOMLRefusesAFormItCannotEdit(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.toml")
+	os.WriteFile(path, []byte(`mcp_servers.leroymerlin = { command = "x" }`+"\n"), 0o600)
+	if _, err := installTOML(path, "lm", nil); err == nil {
+		t.Fatal("an inline table was overwritten")
+	}
+	// A file without a trailing newline still gets a clean block.
+	plain := filepath.Join(t.TempDir(), "plain.toml")
+	os.WriteFile(plain, []byte("model = \"x\""), 0o600)
+	act, err := installTOML(plain, "lm", nil)
+	if err != nil || act != "added" {
+		t.Fatalf("plain: %s %v", act, err)
+	}
+	raw, _ := os.ReadFile(plain)
+	if !strings.HasSuffix(string(raw), "args = []\n") || !strings.Contains(string(raw), "model = \"x\"\n") {
+		t.Fatalf("plain file:\n%s", raw)
+	}
+}
+
+func TestWriteKeepingModeFollowsSymlinks(t *testing.T) {
+	dir := t.TempDir()
+	real := filepath.Join(dir, "real.json")
+	link := filepath.Join(dir, "link.json")
+	os.WriteFile(real, []byte("{}"), 0o600)
+	if err := os.Symlink(real, link); err != nil {
+		t.Skip("symlinks unavailable")
+	}
+	if err := writeKeepingMode(link, []byte(`{"a":1}`)); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := os.ReadFile(real)
+	if err != nil || !strings.Contains(string(raw), `"a":1`) {
+		t.Fatalf("real file = %q %v", raw, err)
+	}
+}

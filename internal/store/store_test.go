@@ -3,6 +3,7 @@ package store
 import (
 	"encoding/json"
 	"errors"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -115,5 +116,64 @@ func TestEventsSurviveWatchRemoval(t *testing.T) {
 	}
 	if len(events) != 0 {
 		t.Fatalf("cascade left %d events", len(events))
+	}
+}
+
+func TestOpenFailsWhenTheParentIsAFile(t *testing.T) {
+	file := filepath.Join(t.TempDir(), "file")
+	os.WriteFile(file, []byte("x"), 0o600)
+	if _, err := Open(filepath.Join(file, "state.db")); err == nil {
+		t.Fatal("a database under a regular file opened")
+	}
+}
+
+func TestAddWatchDefaults(t *testing.T) {
+	ctx := t.Context()
+	st := open(t)
+	w, err := st.AddWatch(ctx, Watch{Name: "defaults", Profile: "default", Kind: KindProduct, Target: json.RawMessage(`{}`)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if w.Interval != 5*time.Minute || w.Pages != 1 || w.CreatedAt.IsZero() {
+		t.Fatalf("defaults = %+v", w)
+	}
+	ws, _ := st.Watches(ctx, "")
+	if len(ws) != 1 || ws[0].Name != "defaults" {
+		t.Fatalf("all profiles = %+v", ws)
+	}
+	if _, err := st.Watches(ctx, "other"); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestCommitCheckUpsertsAndEventsFilter(t *testing.T) {
+	ctx := t.Context()
+	st := open(t)
+	w, _ := st.AddWatch(ctx, Watch{Name: "w", Profile: "default", Kind: KindProduct, Target: json.RawMessage(`{}`)})
+	first := Seen{Ref: "1", Name: "one", Price: 1, Currency: "EUR"}
+	if err := st.CommitCheck(ctx, w.ID, []Seen{first}, nil, []Event{{Type: "product.new", Watch: "w", Profile: "default", At: time.Now().UTC()}}); err != nil {
+		t.Fatal(err)
+	}
+	updated := Seen{Ref: "1", Name: "one changed", Price: 2, Currency: "EUR"}
+	if err := st.CommitCheck(ctx, w.ID, []Seen{updated}, nil, nil); err != nil {
+		t.Fatal(err)
+	}
+	seen, _ := st.Seen(ctx, w.ID)
+	if got := seen["1"]; got.Price != 2 || got.Name != "one changed" {
+		t.Fatalf("upsert = %+v", got)
+	}
+	all, err := st.Events(ctx, "w", time.Time{}, 10)
+	if err != nil || len(all) != 1 {
+		t.Fatalf("events = %+v %v", all, err)
+	}
+	if _, err := st.Events(ctx, "other", time.Time{}, 0); err != nil {
+		t.Fatal(err)
+	}
+	if limited, _ := st.Events(ctx, "", time.Time{}, 1); len(limited) != 1 {
+		t.Fatalf("limit = %+v", limited)
+	}
+	missing, err := st.WatchByName(ctx, "nope")
+	if !errors.Is(err, ErrNotFound) || missing.Name != "" {
+		t.Fatalf("missing = %+v %v", missing, err)
 	}
 }

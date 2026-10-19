@@ -24,9 +24,14 @@ import (
 	"time"
 )
 
-const (
+// latestURL and downloadURL are variables so tests can point the updater at a
+// local server; production always uses the GitHub release.
+var (
 	latestURL   = "https://api.github.com/repos/n0nuser/leroymerlin-cli/releases/latest"
 	downloadURL = "https://github.com/n0nuser/leroymerlin-cli/releases/download/"
+)
+
+const (
 	binaryName  = "leroymerlin"
 	maxDownload = 64 << 20
 )
