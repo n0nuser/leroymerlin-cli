@@ -26,6 +26,7 @@ The read surface is complete for one person shopping: stores, categories, search
 6. **Promoted placements break strict price order.** The site pins a product at position 11 on a `price-asc` page. Accepted: the sort is the site's, not re-sorted locally.
 7. **Pickup `ONSITE` and `OUTOFSTOCK` are not captured.** The parser carries the raw status and the renderer handles both; only the fixtures for those two states are missing.
 8. **`auth harvest` replaces the manual export for interactive users.** It is headed by design, so it needs a display (or a Chrome to attach to), and the browser step is integration-only: the unit tests cover the mapping and resolution, not a launch. `auth login` stays for scripts and CI. **Documented and tested where it can be.**
+9. **A fresh harvest may not be trusted yet.** The live smoke test launched Chrome, cleared the page and stored six cookies, but the CLI's replay of that fresh cookie was challenged. A profile that showed a challenge waited instead. DataDome trust is earned by human browsing in the window; the command must not be treated as a way to skip that. **Documented as a caveat.**
 
 ## Residual risks
 

@@ -38,6 +38,7 @@ What landed in this round:
 - `cd docs-site && npm install && npm run build`: the static export succeeds and includes the new `search`, `product`, `watch` and `sink` reference pages.
 - 85 test functions, 88 runs including subtests. Parser tests are pinned to the real captures, including the store-selected product and home pages; `watch`/`store` have diff and transaction tests; `harvest` tests the cookie mapping, host matching, Chrome resolution and the challenge check without launching a browser; the CLI tests use `httptest` and never talk to leroymerlin.es.
 - Live smoke test: `search "cemento cola"`, a filtered/sorted search, page 2, a category, two products, `store current` (`037 / Salamanca`), `product stock` with pickup rows, and a product watch add/check/remove. All at the normal 1.5 s pace.
+- Live harvest smoke test against a fresh Chrome profile: the browser launched headed, the page cleared and the harvest stored six cookies with the browser's Chrome 155 user agent. `doctor` then challenged that fresh cookie; a later run in the same profile hit a challenge and waited for a human (none present). The port's waiting path is exercised; a human-cleared challenge is what earns a cookie the CLI replay is trusted with.
 
 ## Open caveats
 

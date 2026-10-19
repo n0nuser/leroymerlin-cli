@@ -60,6 +60,11 @@ Option 2, with option 1 as a fallback.
   the stored session file, not the profile.
 - **Not a bypass.** The browser is a real browser, and a human clears the challenge. When DataDome
   challenges again, the harvest waits rather than solving.
+- **Trust is earned by a human.** A freshly launched profile can receive a `datadome` cookie that
+  clears the page but is still challenged when the cli replays it. In the live smoke test the first
+  harvest stored six cookies and `doctor` then challenged them; later runs in that profile showed the
+  challenge and waited. If that happens, solve the check in the window and harvest again; the profile
+  keeps the result.
 - **`auth login` stays**, for scripts, CI (`LEROYMERLIN_COOKIEJAR`), a machine without a display, and
   a session a person already has as a file. For most interactive users the harvest replaces the
   manual export.
