@@ -238,6 +238,9 @@ const userAgentJS = `navigator.userAgent`
 
 func hasCookie(cookies []*network.Cookie, name string) bool {
 	for _, c := range cookies {
+		if c == nil {
+			continue
+		}
 		if c.Name == name && hostMatches(c.Domain) {
 			return true
 		}

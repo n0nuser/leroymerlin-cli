@@ -6,6 +6,8 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/chromedp/cdproto/network"
 )
 
 // syntheticProfile builds a fake Chrome profile root with the given relative
@@ -187,5 +189,95 @@ func TestNormalizeDebugURL(t *testing.T) {
 		if got := NormalizeDebugURL(in); got != want {
 			t.Errorf("NormalizeDebugURL(%q) = %q, want %q", in, got, want)
 		}
+	}
+}
+
+func TestCheckProfileAndCookieStores(t *testing.T) {
+	if err := checkProfile(""); err == nil {
+		t.Fatal("empty profile accepted")
+	}
+	if err := checkProfile(t.TempDir()); err == nil {
+		t.Fatal("a profile without cookies accepted")
+	}
+	if !hasCookieStore(syntheticProfile(t, "Default/Network/Cookies")) {
+		t.Fatal("Network/Cookies not recognised")
+	}
+	if _, err := PlanProfileCopy(t.TempDir()); err == nil {
+		t.Fatal("a profile with no cookie store planned")
+	}
+}
+
+func TestPlanProfileCopyAcceptsNetworkCookies(t *testing.T) {
+	root := syntheticProfile(t, "Local State", "Default/Network/Cookies", "Default/Network/Cookies-wal")
+	files, err := PlanProfileCopy(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(files, "|") != "Local State|Default/Network/Cookies|Default/Network/Cookies-wal" {
+		t.Fatalf("plan = %v", files)
+	}
+}
+
+func TestPrepareProfileDefaultsToTheCacheDir(t *testing.T) {
+	cache := t.TempDir()
+	t.Setenv("XDG_CACHE_HOME", cache)
+	root := syntheticProfile(t, "Local State", "Default/Cookies")
+	dir, cleanup, err := PrepareProfile(root, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cleanup()
+	if !strings.HasPrefix(dir, cache) {
+		t.Fatalf("temp dir %q is not under the cache", dir)
+	}
+}
+
+func TestCopyFileErrors(t *testing.T) {
+	dir := t.TempDir()
+	if err := copyFile(filepath.Join(dir, "missing"), filepath.Join(dir, "out")); err == nil {
+		t.Fatal("a missing source was copied")
+	}
+	file := filepath.Join(dir, "file")
+	os.WriteFile(file, []byte("x"), 0o600)
+	if err := copyFile(file, filepath.Join(file, "child")); err == nil {
+		t.Fatal("a file under a regular file was copied")
+	}
+}
+
+func TestRemoveAllRetry(t *testing.T) {
+	dir := t.TempDir()
+	sub := filepath.Join(dir, "sub")
+	os.MkdirAll(sub, 0o700)
+	if err := removeAllRetry(sub); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(sub); !os.IsNotExist(err) {
+		t.Fatal("removeAllRetry left the directory")
+	}
+	if err := removeAllRetry(filepath.Join(dir, "missing")); err != nil {
+		t.Fatalf("removing a missing dir: %v", err)
+	}
+}
+
+// launchOptions is a pure option builder, so it can be exercised without
+// launching a browser.
+func TestLaunchOptions(t *testing.T) {
+	chrome := filepath.Join(t.TempDir(), "chrome")
+	os.WriteFile(chrome, []byte("#!/bin/sh\n"), 0o700)
+	if opts := launchOptions(chrome, "/tmp/profile"); len(opts) == 0 {
+		t.Fatal("launchOptions returned nothing")
+	}
+}
+
+func TestHasCookieAndExportEdgeCases(t *testing.T) {
+	if hasCookie(nil, "datadome") || hasCookie([]*network.Cookie{nil}, "datadome") {
+		t.Fatal("an empty cookie list matched")
+	}
+	raw, err := CookiesToExport([]*network.Cookie{nil, {Name: "", Value: "x"}, {Name: "datadome", Value: "v", Domain: ".leroymerlin.es"}}, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(raw), "datadome") || strings.Contains(string(raw), `""`) {
+		t.Fatalf("export = %s", raw)
 	}
 }
