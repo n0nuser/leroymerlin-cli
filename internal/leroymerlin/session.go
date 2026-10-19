@@ -256,14 +256,25 @@ func unixFloat(f float64) time.Time {
 
 func parseJSON(raw []byte) (ImportResult, error) {
 	var list []jsonCookie
+	var userAgent string
 	if raw[0] == '{' {
+		// Cookie-Editor wraps the list as {"url","cookies"}; a script that
+		// reads document.cookie often wraps it as {"userAgent","cookies"}.
+		// Both are the same list, and the latter also carries the browser
+		// that earned the cookies, which the site scores together with them.
 		var wrap struct {
-			Cookies []jsonCookie `json:"cookies"`
+			Cookies     []jsonCookie `json:"cookies"`
+			UserAgent   string       `json:"userAgent"`
+			UserAgentV2 string       `json:"user_agent"`
 		}
 		if err := json.Unmarshal(raw, &wrap); err != nil {
 			return ImportResult{}, Usage("cookie JSON does not parse: %v", err)
 		}
 		list = wrap.Cookies
+		userAgent = wrap.UserAgent
+		if userAgent == "" {
+			userAgent = wrap.UserAgentV2
+		}
 	} else if err := json.Unmarshal(raw, &list); err != nil {
 		return ImportResult{}, Usage("cookie JSON does not parse: %v", err)
 	}
@@ -271,6 +282,7 @@ func parseJSON(raw []byte) (ImportResult, error) {
 	for _, j := range list {
 		res.add(j.cookie())
 	}
+	res.Session.UserAgent = strings.TrimSpace(userAgent)
 	return res, nil
 }
 

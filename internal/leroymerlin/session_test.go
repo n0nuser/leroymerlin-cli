@@ -23,6 +23,7 @@ func TestParseExportFormats(t *testing.T) {
 		file, format string
 	}{
 		{"cookies_editor.synthetic.json", FormatJSON},
+		{"cookies_browser.synthetic.json", FormatJSON},
 		{"cookies.synthetic.txt", FormatNetscape},
 		{"session.synthetic.har", FormatHAR},
 	}
@@ -43,6 +44,25 @@ func TestParseExportFormats(t *testing.T) {
 			}
 			roundTrip(t, res.Session.Cookies)
 		})
+	}
+}
+
+// Regression: a {"userAgent","cookies"} export imported the cookies but
+// dropped the user agent, so the client replayed Chrome 155 cookies as the
+// default Chrome 133 and the pair did not match.
+func TestParseExportBrowserWrapperKeepsUserAgent(t *testing.T) {
+	res, err := ParseExport(readFixture(t, "cookies_browser.synthetic.json"), FormatAuto)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(res.Session.UserAgent, "Chrome/155") {
+		t.Fatalf("user agent %q not taken from the export", res.Session.UserAgent)
+	}
+	if got := names(res.Session); got != "datadome,lm-store" {
+		t.Fatalf("cookies %s, want datadome,lm-store (other domains dropped)", got)
+	}
+	if res.Skipped != 1 {
+		t.Fatalf("skipped %d, want the one cookie for another site", res.Skipped)
 	}
 }
 
