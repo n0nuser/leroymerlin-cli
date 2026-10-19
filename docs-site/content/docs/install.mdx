@@ -1,0 +1,61 @@
+---
+title: install
+description: Build the binary with Go, or install it straight from the module path.
+---
+
+`leroymerlin` is a single Go binary. There is no service, no daemon and no runtime
+configuration to install.
+
+## with Go
+
+Go 1.26 or newer is recommended.
+
+```bash
+go install github.com/n0nuser/leroymerlin-cli/cmd/leroymerlin@latest
+```
+
+The binary lands in `$(go env GOPATH)/bin`. Put that directory on your `PATH` if it is
+not there already.
+
+## from source
+
+```bash
+git clone https://github.com/n0nuser/leroymerlin-cli
+cd leroymerlin-cli
+go build -o bin/leroymerlin ./cmd/leroymerlin
+install -m 0755 bin/leroymerlin ~/.local/bin/leroymerlin
+```
+
+Run `go test ./...` first if you want to check the checkout before installing it.
+
+## check the install
+
+```bash
+leroymerlin --version
+leroymerlin store list --query madrid
+```
+
+`store list` and `category list` read public sitemaps and need no session, so they are
+a quick way to see that the network path works.
+
+Then import a browser session and run the full check:
+
+```bash
+leroymerlin auth login --cookies ~/Downloads/leroymerlin-cookies.json
+leroymerlin doctor
+```
+
+`doctor` checks the config, the stored session, the sitemaps and one request to the
+storefront. When something behaves oddly, run it before anything else.
+
+## updating
+
+Release builds can update themselves:
+
+```bash
+leroymerlin update --check
+leroymerlin update --yes
+```
+
+Builds installed from a branch or from a local checkout are left alone. Reinstall those
+with `go install` or `go build`.

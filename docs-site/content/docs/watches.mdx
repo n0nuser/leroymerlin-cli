@@ -1,0 +1,108 @@
+---
+title: watches
+description: Save a query and get events for the things that changed since the last check.
+---
+
+A watch is a saved query. Running a check fetches the query again, compares the result
+with the last check and prints only the differences. It is a change feed, not a
+repeated search.
+
+```bash
+leroymerlin watch add search "taladro" --max-price 80 --name taladros
+leroymerlin watch add product 81866477 --name pegoland
+leroymerlin watch list
+leroymerlin watch check --all
+```
+
+Watches live in the local state database. They are not stored on leroymerlin.es and
+they do not follow you to another machine.
+
+## what a check reports
+
+- a product that was not in the previous result: `product.new`
+- a price that moved: `product.price_changed`
+- stock that appeared or disappeared at the selected store: `product.in_stock`,
+  `product.out_of_stock`
+- a product that left the result set: `product.removed`
+
+Each event is one JSON object on stdout:
+
+```json
+{
+  "type": "product.price_changed",
+  "watch": "pegoland",
+  "profile": "madrid",
+  "at": "2026-10-19T09:15:00Z",
+  "product": {
+    "ref": "81866477",
+    "title": "Cemento cola blanco 25 kg",
+    "price": { "amount": 12.95, "currency": "EUR" },
+    "url": "https://www.leroymerlin.es/productos/..."
+  },
+  "change": { "from": 14.5, "to": 12.95 }
+}
+```
+
+`--format jsonl` makes a check emit one event per line, which is the useful shape for
+pipes and logs.
+
+## check one watch or all of them
+
+```bash
+leroymerlin watch check taladros
+leroymerlin watch check --all
+leroymerlin watch events taladros --since 24h
+```
+
+A check commits its state after the results are fetched and the events are written.
+If a check is interrupted before that, the next run reports the same changes again.
+Deduplicate on `watch`, `type`, `product.ref` and `change` when that matters.
+
+## sinks
+
+By default events go to stdout. A sink sends a copy somewhere else. Sinks are configured
+in `config.toml` so they are easy to review and version.
+
+<Tabs items={['ntfy', 'webhook', 'exec']} id="sink-type">
+  <Tab value="ntfy">
+    ```toml
+    [sinks.shop]
+    type = "ntfy"
+    url = "https://ntfy.sh"
+    topic = "leroymerlin"
+    token_file = "~/.config/leroymerlin-cli/ntfy-token"
+    ```
+  </Tab>
+  <Tab value="webhook">
+    ```toml
+    [sinks.chat]
+    type = "webhook"
+    url = "https://example.invalid/hooks/leroymerlin"
+    ```
+
+    The request body is the event JSON.
+  </Tab>
+  <Tab value="exec">
+    ```toml
+    [sinks.script]
+    type = "exec"
+    command = ["~/bin/on-leroymerlin-event"]
+    ```
+
+    The command gets one event as JSON on stdin, once per event.
+  </Tab>
+</Tabs>
+
+```bash
+leroymerlin sink list
+leroymerlin sink test shop
+```
+
+Delivery is best effort. A failing sink is reported and the check still commits, so a
+broken webhook does not turn into a stream of duplicates. Test a sink once when you add
+it, then rely on the log from [scheduled checks](/docs/scheduling).
+
+<Callout type="info" title="one store per watch">
+  Stock follows the store selected in the browser session. If you compare stores, use
+  one profile per store and create the watch under the profile that belongs to it.
+</Callout>

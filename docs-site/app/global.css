@@ -1,0 +1,104 @@
+@import 'tailwindcss';
+@import 'fumadocs-ui/css/neutral.css';
+@import 'fumadocs-ui/css/preset.css';
+
+@source '../node_modules/fumadocs-ui/dist/**/*.js';
+
+@theme {
+  --brand-50: #f1f8e9;
+  --brand-100: #e0f0cd;
+  --brand-200: #c3e29e;
+  --brand-300: #9fd06a;
+  --brand-400: #7fbc3f;
+  --brand-500: #62a023;
+  --brand-600: #4c8019;
+  --brand-700: #3b6316;
+  --brand-800: #304f17;
+  --brand-900: #294317;
+  --brand-950: #122408;
+}
+
+:root {
+  color-scheme: light;
+
+  --color-fd-background: #f7faf4;
+  --color-fd-foreground: #1a2417;
+  --color-fd-card: #ffffff;
+  --color-fd-popover: #ffffff;
+  --color-fd-muted: #edf4e7;
+  --color-fd-muted-foreground: #5c6b55;
+  --color-fd-border: #d9e6ce;
+  --color-fd-accent: #e2efd7;
+  --color-fd-accent-foreground: #3b6316;
+  --color-fd-primary: #4c8019;
+  --color-fd-primary-foreground: #ffffff;
+  --color-fd-ring: #4c8019;
+  --color-fd-secondary: #edf4e7;
+}
+
+.dark {
+  color-scheme: dark;
+
+  --color-fd-background: #0e150c;
+  --color-fd-foreground: #e9f2e2;
+  --color-fd-card: #161f13;
+  --color-fd-popover: #161f13;
+  --color-fd-muted: #161f13;
+  --color-fd-muted-foreground: #aebda4;
+  --color-fd-border: #2d3d26;
+  --color-fd-accent: #24351d;
+  --color-fd-accent-foreground: #b7dc8f;
+  --color-fd-primary: #9acb63;
+  --color-fd-primary-foreground: #10190c;
+  --color-fd-ring: #b7dc8f;
+  --color-fd-secondary: #1b2717;
+}
+
+::selection {
+  background-color: rgb(98 160 35 / 22%);
+}
+
+.dark ::selection {
+  background-color: rgb(154 203 99 / 28%);
+}
+
+.prose {
+  --tw-prose-body: color-mix(in oklab, var(--color-fd-foreground) 86%, transparent);
+  --tw-prose-headings: color-mix(in oklab, var(--color-fd-foreground) 90%, transparent);
+  --tw-prose-links: var(--color-fd-primary);
+  --tw-prose-code: var(--color-fd-primary);
+}
+
+.prose :where(code):not(:where([class~='not-prose'], [class~='not-prose'] *)) {
+  border: none;
+  background-color: color-mix(in oklab, var(--color-fd-primary) 10%, transparent);
+}
+
+#nd-sidebar {
+  background-color: #ffffff;
+  border-color: transparent;
+}
+
+.dark #nd-sidebar {
+  --color-fd-muted-foreground: #aebda4;
+  background-color: #161f13;
+}
+
+@layer utilities {
+  button[data-search-full] {
+    background-color: var(--color-fd-background);
+  }
+
+  figure.shiki {
+    background-color: var(--color-fd-card);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  a,
+  button {
+    transition:
+      color 150ms cubic-bezier(0.175, 0.885, 0.32, 1.1),
+      background-color 150ms cubic-bezier(0.175, 0.885, 0.32, 1.1);
+  }
+}

@@ -44,8 +44,8 @@ jobs:
         with:
           go-version-file: go.mod
       - run: make docs
-      # The site app lives in docs-site/ (package.json); the reference pages
-      # in it are generated here. Skip the node build until the app exists.
+      # The reference pages are generated from the command tree above, then
+      # the static site is type-checked and built.
       - uses: actions/setup-node@v4
         if: hashFiles('docs-site/package.json') != ''
         with:

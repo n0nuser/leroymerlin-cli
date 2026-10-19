@@ -1,0 +1,58 @@
+---
+title: when the site changes
+description: Why the cli stops loudly when leroymerlin.es changes, and what to include in a report.
+---
+
+leroymerlin.es has no public API for this. The cli reads the same sitemaps and pages a
+browser reads, and parses them. Those pages can change without notice.
+
+The choice here is to fail loudly. A search that silently returns nothing because a
+field moved looks like an empty shelf. A command that stops and says what it saw costs
+you one retry.
+
+## what exit 7 looks like
+
+When a known page answers with a shape the parser does not understand, the command
+exits `7` and prints the endpoint and the decode error, plus a prefilled issue link.
+
+```text
+leroymerlin: the storefront returned a response the cli does not understand
+  endpoint: /sitemap-store1.xml
+  decode: expected element type <urlset> but have <html>
+
+Report this (the form is prefilled):
+  https://github.com/n0nuser/leroymerlin-cli/issues/new?...
+```
+
+The report contains the command path, the endpoint, the HTTP status and a short,
+redacted body excerpt. It never contains cookie values, tokens or the arguments you
+passed to the command.
+
+Run the command again with `--debug` to get the request log on stderr. Cookies are
+redacted there too.
+
+## telling failures apart
+
+- `7` means the site answered and the answer no longer fits. That is a parser problem;
+  report it.
+- `5` means bot protection challenged the request or you were rate limited. That is not
+  an API change. Wait, then reload leroymerlin.es in the browser and export the
+  session again if it continues.
+- `6` means the request never completed. Check the network or proxy and retry.
+
+## check the setup first
+
+```bash
+leroymerlin doctor
+```
+
+`doctor` checks the config, the stored session, the public sitemaps and one request to
+the storefront. Most surprises are an expired or challenged session, not a changed
+page. If the sitemaps pass and the storefront rejects the session, import the cookies
+again before filing anything.
+
+## scope
+
+The cli is read-only and stays that way. It does not work around the bot protection
+with a headless browser or a different account; it replays the session you exported.
+When the site changes, the fix belongs in the parsers, not in a broader bypass.
